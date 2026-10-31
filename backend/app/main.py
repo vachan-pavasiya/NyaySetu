@@ -6,6 +6,7 @@ Data flow: Inbound HTTP -> Router -> Database/Pipelines -> JSON response.
 """
 
 import uuid
+import logging
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, List, Optional
@@ -19,9 +20,11 @@ from sqlalchemy.orm import Session
 from backend.app.config import get_settings, Settings
 from backend.app.database import engine, Base, get_db, SessionLocal
 import backend.app.models as models
-from backend.app.models import Judgment, IngestJob
+from backend.app.models import Judgment, IngestJob, Direction, OperativeSegment
 from backend.pipeline.ingest import run_ingestion
+from backend.pipeline.agent import ComplianceExtractionAgent, analyze_judgment
 
+logger = logging.getLogger("compliance_radar.api")
 settings = get_settings()
 
 
@@ -90,6 +93,49 @@ class JudgmentListItem(BaseModel):
     status: str
     error: Optional[str] = None
     created_at: str
+
+
+class DirectionItem(BaseModel):
+    id: int
+    judgment_id: int
+    responsible_party: str
+    party_type: str
+    direction_type: str
+    action: str
+    deadline_phrase: Optional[str] = None
+    source_quote: str
+    quote_start: Optional[int] = None
+    quote_end: Optional[int] = None
+    quote_verified: bool
+    confidence: float
+    deadline_status: str
+    extraction_method: Optional[str] = "gemini"
+    created_at: str
+
+
+class AnalyzeJudgmentResponse(BaseModel):
+    judgment_id: int
+    case_number: Optional[str] = None
+    has_directions: bool
+    total_directions: int
+    directions: List[dict]
+    metrics: dict
+    step_logs: List[dict]
+
+
+class BatchAnalyzeRequest(BaseModel):
+    judgment_ids: Optional[List[int]] = None
+    limit: int = Field(default=30, ge=1, le=100)
+
+
+class BatchAnalyzeResponse(BaseModel):
+    total_judgments: int
+    judgments_with_directions: int
+    total_directions: int
+    verified_first_try_pct: float
+    verified_after_retry_pct: float
+    average_latency_seconds: float
+    results: List[dict]
 
 
 class JudgmentDetail(BaseModel):
@@ -310,6 +356,107 @@ def get_judgment_detail(judgment_id: int, db: Session = Depends(get_db)):
         error=record.error,
         created_at=record.created_at.isoformat(),
     )
+
+
+@app.post("/judgments/{judgment_id}/analyze", response_model=AnalyzeJudgmentResponse, tags=["Analysis"])
+def analyze_single_judgment(judgment_id: int, db: Session = Depends(get_db)):
+    """Run agentic segmentation, direction extraction, and verbatim verification on a judgment."""
+    try:
+        result = analyze_judgment(judgment_id, db=db)
+        return result
+    except ValueError as val_err:
+        raise HTTPException(status_code=404, detail=str(val_err))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Analysis pipeline error: {str(exc)}")
+
+
+@app.post("/analyze/batch", response_model=BatchAnalyzeResponse, tags=["Analysis"])
+def analyze_batch(req: BatchAnalyzeRequest, db: Session = Depends(get_db)):
+    """Run agentic extraction on a batch of ingested judgments."""
+    if req.judgment_ids:
+        records = db.query(Judgment).filter(Judgment.id.in_(req.judgment_ids)).all()
+    else:
+        # Select judgments that haven't been analyzed yet, prioritizing INGESTED ones
+        records = (
+            db.query(Judgment)
+            .filter(Judgment.status == "INGESTED")
+            .order_by(Judgment.id.asc())
+            .limit(req.limit)
+            .all()
+        )
+
+    if not records:
+        return BatchAnalyzeResponse(
+            total_judgments=0,
+            judgments_with_directions=0,
+            total_directions=0,
+            verified_first_try_pct=0.0,
+            verified_after_retry_pct=0.0,
+            average_latency_seconds=0.0,
+            results=[],
+        )
+
+    results = []
+    total_directions = 0
+    total_verified_first = 0
+    total_verified_retry = 0
+    judgments_with_dirs = 0
+    latencies = []
+
+    for r in records:
+        try:
+            res = analyze_judgment(r.id, db=db)
+            results.append(res)
+            if res.get("has_directions"):
+                judgments_with_dirs += 1
+            dirs_count = res.get("total_directions", 0)
+            total_directions += dirs_count
+            m = res.get("metrics", {})
+            total_verified_first += m.get("verified_first_try", 0)
+            total_verified_retry += m.get("verified_after_retry", 0)
+            latencies.append(m.get("total_latency_seconds", 0.0))
+        except Exception as exc:
+            logger.error(f"Error analyzing judgment {r.id}: {exc}")
+
+    avg_lat = round(sum(latencies) / max(len(latencies), 1), 3)
+    first_try_pct = round((total_verified_first / max(total_directions, 1)) * 100, 1)
+    after_retry_pct = round(((total_verified_first + total_verified_retry) / max(total_directions, 1)) * 100, 1)
+
+    return BatchAnalyzeResponse(
+        total_judgments=len(records),
+        judgments_with_directions=judgments_with_dirs,
+        total_directions=total_directions,
+        verified_first_try_pct=first_try_pct,
+        verified_after_retry_pct=after_retry_pct,
+        average_latency_seconds=avg_lat,
+        results=results,
+    )
+
+
+@app.get("/judgments/{judgment_id}/directions", response_model=List[DirectionItem], tags=["Judgments"])
+def get_judgment_directions(judgment_id: int, db: Session = Depends(get_db)):
+    """Retrieve all verified operative directions extracted for a judgment."""
+    records = db.query(Direction).filter(Direction.judgment_id == judgment_id).all()
+    return [
+        DirectionItem(
+            id=r.id,
+            judgment_id=r.judgment_id,
+            responsible_party=r.responsible_party,
+            party_type=r.party_type,
+            direction_type=r.direction_type or "mandatory",
+            action=r.action,
+            deadline_phrase=r.deadline_phrase,
+            source_quote=r.source_quote,
+            quote_start=r.quote_start,
+            quote_end=r.quote_end,
+            quote_verified=r.quote_verified,
+            confidence=r.confidence,
+            deadline_status=r.deadline_status or "UNVERIFIED",
+            extraction_method=r.extraction_method or "gemini",
+            created_at=r.created_at.isoformat(),
+        )
+        for r in records
+    ]
 
 
 if __name__ == "__main__":

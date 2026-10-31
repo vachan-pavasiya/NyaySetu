@@ -113,14 +113,17 @@ class Direction(Base):
 
     # Extraction fields
     responsible_party = Column(String(512), nullable=False, index=True)
-    party_type = Column(String(64), default="GOVERNMENT_DEPARTMENT")  # GOV, PRIVATE, COURT_OFFICIAL, UNKNOWN
+    party_type = Column(String(64), default="department")  # state, department, officer, private, other
+    direction_type = Column(String(32), default="mandatory")  # mandatory, liberty, consequential
     action = Column(Text, nullable=False)
     deadline_phrase = Column(String(256), nullable=True)
     source_quote = Column(Text, nullable=False)
-    quote_start_offset = Column(Integer, nullable=True)
-    quote_end_offset = Column(Integer, nullable=True)
-    confidence = Column(Float, default=0.0)
+    quote_start = Column(Integer, nullable=True)
+    quote_end = Column(Integer, nullable=True)
+    confidence = Column(Float, default=1.0)
     quote_verified = Column(Boolean, default=False)
+    rejection_reason = Column(Text, nullable=True)
+    extraction_method = Column(String(32), default="gemini", index=True)  # gemini, fallback
 
     # Resolved Deadline Window (Deterministic math)
     deadline_window_start = Column(Date, nullable=True, index=True)
