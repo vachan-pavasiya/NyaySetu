@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     # LLM Settings
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-flash-lite-latest"
 
     # AWS S3 Settings (Open Dataset)
     S3_BUCKET: str = "indian-high-court-judgments"

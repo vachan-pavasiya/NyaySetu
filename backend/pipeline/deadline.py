@@ -31,9 +31,9 @@ logger = logging.getLogger("compliance_radar.deadline")
 # Configurable constant: estimated days for transmission and receipt of order copy
 SERVICE_LAG_DAYS: int = int(os.getenv("SERVICE_LAG_DAYS", "30"))
 
-AnchorType = Literal["judgment_date", "receipt", "explicit_date", "hearing", "none"]
+AnchorType = Literal["judgment_date", "receipt", "explicit_date", "hearing", "DEPENDENT_ON_PRIOR_EVENT", "ambiguous", "none"]
 OffsetUnit = Literal["days", "weeks", "months", "immediate", "hearing", "none"]
-DeadlineStatus = Literal["UPCOMING", "IN_WINDOW", "LAPSED", "NO_DEADLINE", "URGENT_UNSPECIFIED"]
+DeadlineStatus = Literal["UPCOMING", "IN_WINDOW", "LAPSED", "NO_DEADLINE", "URGENT_UNSPECIFIED", "DEPENDENT", "AMBIGUOUS"]
 
 WORD_TO_NUM = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
@@ -49,7 +49,7 @@ WORD_TO_NUM = {
 
 class LLMDeadlineClassification(BaseModel):
     """Schema for LLM classification of unrecognised phrases (no date calculation)."""
-    anchor_type: AnchorType = Field(description="Anchor type: judgment_date, receipt, explicit_date, hearing, or none")
+    anchor_type: AnchorType = Field(description="Anchor type: judgment_date, receipt, explicit_date, hearing, DEPENDENT_ON_PRIOR_EVENT, or none")
     offset_value: Optional[int] = Field(default=None, description="Numeric count of days/weeks/months")
     offset_unit: Optional[OffsetUnit] = Field(default=None, description="Unit: days, weeks, months, immediate, hearing, or none")
     explicit_date_str: Optional[str] = Field(default=None, description="Verbatim date string if explicit date is mentioned")
@@ -72,7 +72,8 @@ class ParsedDeadline(BaseModel):
 
 def _get_gemini_client():
     """Lazily initializes the Google GenAI client."""
-    from backend.app.config import settings
+    from backend.app.config import get_settings
+    settings = get_settings()
     api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
     if not api_key:
         return None
@@ -106,6 +107,16 @@ def parse_explicit_date(date_str: str) -> Optional[date]:
 
 def classify_phrase_regex(norm_phrase: str) -> Optional[dict]:
     """Applies rule-based regex patterns to classify legal deadline phrases."""
+    # 0. Dependent on prior event: "thereafter", "after which", "upon completion of", "after compliance"
+    if re.search(r"\b(thereafter|after\s+which|upon\s+completion\s+of|after\s+compliance)\b", norm_phrase, re.IGNORECASE):
+        return {
+            "anchor_type": "DEPENDENT_ON_PRIOR_EVENT",
+            "offset_value": None,
+            "offset_unit": "none",
+            "is_urgent_unspecified": False,
+            "explicit_date": None,
+        }
+
     # 1. Urgent unspecified
     if re.search(r"\b(forthwith|immediately|expeditiously|as\s+expeditiously\s+as\s+possible)\b", norm_phrase, re.IGNORECASE):
         return {
@@ -165,12 +176,15 @@ def classify_phrase_regex(norm_phrase: str) -> Optional[dict]:
             anchor_text = (dur_match.group(3) or "").lower().strip()
             if re.search(r"\b(receipt|communication|service|production|served|producing|communicated|receiving)\b", anchor_text):
                 anchor = "receipt"
-            elif re.search(r"\b(date\s+of\s+(?:this\s+order|the\s+order|this\s+judgment)|today|this\s+date|date)\b", anchor_text) or anchor_text == "date":
+            elif re.search(r"\bdate\s+of\s+(?:this\s+order|the\s+order|this\s+judgment)\b", anchor_text) or anchor_text in ("today", "this date"):
                 anchor = "judgment_date"
+            elif anchor_text == "date" or "from date" in norm_phrase.lower():
+                # "from date" without "of this order/judgment" is ambiguous
+                anchor = "ambiguous"
             elif not anchor_text:
-                anchor = "judgment_date"
+                anchor = "ambiguous"
             else:
-                anchor = "receipt" if "order" in anchor_text else "judgment_date"
+                anchor = "receipt" if "order" in anchor_text else "ambiguous"
 
             return {
                 "anchor_type": anchor,
@@ -217,7 +231,8 @@ def classify_phrase_llm(phrase: str) -> Optional[dict]:
 
     prompt = (
         "Classify the following court deadline phrase into structured metadata. "
-        "DO NOT calculate or compute dates. Only extract anchor type, offset value, and offset unit:\n"
+        "DO NOT calculate or compute dates. Only extract anchor type, offset value, and offset unit. "
+        "If the phrase depends on a prior event (such as thereafter, after which, upon completion of), set anchor_type to DEPENDENT_ON_PRIOR_EVENT:\n"
         f"Phrase: {phrase}"
     )
 
@@ -262,6 +277,24 @@ def compute_deadline_window(
 ) -> Tuple[Optional[date], Optional[date], bool, str, DeadlineStatus]:
     """Deterministically computes date window, estimated flag, explanation, and status."""
     ref_date = as_of or date.today()
+
+    if anchor_type == "DEPENDENT_ON_PRIOR_EVENT":
+        return (
+            None,
+            None,
+            False,
+            "Deadline depends on an earlier step in the order; no date can be computed.",
+            "DEPENDENT",
+        )
+
+    if anchor_type == "ambiguous":
+        return (
+            None,
+            None,
+            False,
+            "Ambiguous deadline phrase ('from date' does not clearly specify date of order/judgment); no computed window.",
+            "AMBIGUOUS",
+        )
 
     if is_urgent_unspecified or offset_unit == "immediate":
         w_start = judgment_date
@@ -379,6 +412,33 @@ def resolve_deadline(
     )
 
 
+def deduplicate_stored_directions(db: Session) -> int:
+    """Finds and removes duplicate directions in SQLite with overlapping/subsumed quote offsets for the same party."""
+    directions = db.query(Direction).order_by(Direction.judgment_id, Direction.id).all()
+    to_delete_ids = set()
+
+    for i in range(len(directions)):
+        for j in range(len(directions)):
+            if i == j:
+                continue
+            d1, d2 = directions[i], directions[j]
+            if d1.judgment_id != d2.judgment_id or d2.id in to_delete_ids:
+                continue
+            s1, e1 = d1.quote_start, d1.quote_end
+            s2, e2 = d2.quote_start, d2.quote_end
+            if s1 is not None and e1 is not None and s2 is not None and e2 is not None:
+                same_party = (d1.responsible_party or "").strip().lower() == (d2.responsible_party or "").strip().lower()
+                if s1 <= s2 and e1 >= e2 and (e1 - s1) > (e2 - s2) and same_party:
+                    to_delete_ids.add(d2.id)
+                    logger.info(f"Marked duplicate Direction ID {d2.id} for deletion (subsumed by ID {d1.id} in judgment {d1.judgment_id})")
+
+    if to_delete_ids:
+        db.query(Direction).filter(Direction.id.in_(list(to_delete_ids))).delete(synchronize_session=False)
+        db.commit()
+
+    return len(to_delete_ids)
+
+
 def resolve_and_update_direction(
     direction_id: int,
     db: Session,
@@ -413,8 +473,12 @@ def resolve_all_directions(
     db: Session,
     service_lag_days: int = SERVICE_LAG_DAYS,
     as_of: Optional[date] = None,
+    dedup: bool = True,
 ) -> int:
-    """Resolves deadline windows for all directions in the database."""
+    """Resolves deadline windows for all directions in the database, optionally cleaning duplicates first."""
+    if dedup:
+        deduplicate_stored_directions(db)
+
     directions = db.query(Direction).all()
     count = 0
     for d in directions:

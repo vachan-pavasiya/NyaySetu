@@ -1,152 +1,100 @@
-"""Verbatim quote verification, offset resolution, and deadline alignment module.
+"""Verifier module for extracted court directions.
 
-Role: Enforces the core guardrails:
-      1. Every extracted direction must have an exact, verbatim source quote from the judgment text.
-      2. Every deadline_phrase must also be a verbatim substring of the judgment text. If not found,
-         it is set to null and logged.
-      3. If a deadline sentence sits adjacent to the direction, extends source_quote to include it.
-Data flow: ExtractedDirection + Judgment text -> Verbatim matcher -> Offset mapping -> VerificationResult.
+Role: Verifies that extracted source quotes and deadline phrases are verbatim substrings of the source judgment text
+      (normalising whitespace). Extends source quote to include adjacent deadline sentences, and deduplicates
+      directions with overlapping/subsumed quotes for the same party.
+Data flow: ExtractedDirection -> verify_direction_quote -> VerificationResult (offsets, confidence adjustment, quote extension)
+           -> deduplicate_verified_directions.
 """
 
 import re
 import logging
-from typing import Optional, Tuple
+from typing import Optional, List
 from backend.pipeline.models import ExtractedDirection, VerificationResult
 
 logger = logging.getLogger("compliance_radar.verify")
 
 
-def sanitize_typography(s: str) -> str:
-    """Normalize typographic characters like smart quotes, dashes, and non-breaking spaces."""
-    if not s:
-        return ""
-    replacements = {
-        "\u2018": "'",  # Left single quotation mark
-        "\u2019": "'",  # Right single quotation mark
-        "\u201c": '"',  # Left double quotation mark
-        "\u201d": '"',  # Right double quotation mark
-        "\u2013": "-",  # En dash
-        "\u2014": "-",  # Em dash
-        "\u00a0": " ",  # Non-breaking space
-        "\ufffd": "",   # Replacement character
-    }
-    for orig, rep in replacements.items():
-        s = s.replace(orig, rep)
-    return s
-
-
 def normalize_whitespace(text: str) -> str:
-    """Collapse any sequence of whitespace characters into a single space."""
+    """Collapses consecutive whitespace and trims ends."""
     return " ".join(text.split())
 
 
-def locate_verbatim_quote_offsets(raw_text: str, quote: str) -> Tuple[bool, Optional[int], Optional[int], str]:
-    """Find exact character offsets of quote in raw_text allowing whitespace variance.
-    
-    Returns:
-        (found: bool, start_offset: Optional[int], end_offset: Optional[int], canonical_quote: str)
+def find_normalized_substring(needle: str, haystack: str) -> Optional[tuple[int, int]]:
+    """Locates needle in haystack after normalizing whitespace.
+
+    Returns the character offsets (start, end) in the original haystack,
+    or None if needle does not occur verbatim.
     """
-    if not quote or not raw_text:
-        return False, None, None, quote
+    norm_needle = normalize_whitespace(needle)
+    if not norm_needle:
+        return None
 
-    # 1. Direct exact substring match
-    pos = raw_text.find(quote)
-    if pos != -1:
-        return True, pos, pos + len(quote), quote
+    # Exact raw search first
+    raw_idx = haystack.find(needle)
+    if raw_idx != -1:
+        return (raw_idx, raw_idx + len(needle))
 
-    # 2. Direct match with typography normalization
-    sanitized_raw = sanitize_typography(raw_text)
-    sanitized_quote = sanitize_typography(quote)
-    pos_sanitized = sanitized_raw.find(sanitized_quote)
-    if pos_sanitized != -1:
-        start_idx = pos_sanitized
-        end_idx = pos_sanitized + len(sanitized_quote)
-        canonical = raw_text[start_idx:end_idx]
-        return True, start_idx, end_idx, canonical
+    # Tokenized regex search preserving original character offsets
+    tokens = norm_needle.split(" ")
+    escaped_tokens = [re.escape(t) for t in tokens]
+    pattern = r"\s+".join(escaped_tokens)
 
-    # 3. Regex token-based match (collapsing arbitrary whitespace, linebreaks, punctuation)
-    tokens = [re.escape(t) for t in sanitized_quote.split() if t.strip()]
-    if tokens:
-        pattern_str = r"\s+".join(tokens)
-        try:
-            match = re.search(pattern_str, sanitized_raw, flags=re.IGNORECASE)
-            if match:
-                start_idx = match.start()
-                end_idx = match.end()
-                canonical = raw_text[start_idx:end_idx]
-                return True, start_idx, end_idx, canonical
-        except re.error:
-            pass
+    match = re.search(pattern, haystack)
+    if match:
+        return (match.start(), match.end())
 
-    # 4. Trim wrapping quotes and trailing punctuation if model wrapped the string
-    trimmed = sanitized_quote.strip(" \"'“”….,;")
-    if trimmed and len(trimmed) >= 10:
-        trimmed_tokens = [re.escape(t) for t in trimmed.split() if t.strip()]
-        if trimmed_tokens:
-            try:
-                pattern_str = r"\s+".join(trimmed_tokens)
-                match = re.search(pattern_str, sanitized_raw, flags=re.IGNORECASE)
-                if match:
-                    start_idx = match.start()
-                    end_idx = match.end()
-                    canonical = raw_text[start_idx:end_idx]
-                    return True, start_idx, end_idx, canonical
-            except re.error:
-                pass
+    return None
 
-    # 5. Normalized whitespace check in case raw text has extreme formatting
-    norm_raw = normalize_whitespace(sanitized_raw)
-    norm_q = normalize_whitespace(sanitized_quote)
-    if norm_q in norm_raw:
-        norm_pos = norm_raw.find(norm_q)
-        return True, norm_pos, norm_pos + len(norm_q), norm_q
 
-    return False, None, None, quote
+# Alias for backward compatibility
+locate_verbatim_quote_offsets = find_normalized_substring
 
 
 def verify_direction_quote(direction: ExtractedDirection, full_text: str) -> VerificationResult:
-    """Verify that a direction's source_quote and deadline_phrase are verbatim substrings.
-    
-    1. Verifies source_quote is a verbatim substring; resolves character offsets.
-    2. If deadline_phrase is present, verifies it is a verbatim substring. If not found, sets to None.
-    3. If deadline sentence sits adjacent to source_quote, extends source_quote to include it.
+    """Verifies that source_quote is a verbatim substring of full_text.
+
+    Also verifies deadline_phrase is a verbatim substring of full_text and sits within
+    or adjacent to the direction. Extends source_quote to include adjacent deadline sentences.
     """
-    quote = direction.source_quote.strip() if direction.source_quote else ""
-    if not quote or len(quote) < 5:
+    raw_quote = direction.source_quote
+    if not raw_quote or not raw_quote.strip():
         return VerificationResult(
             direction=direction,
             verified=False,
-            rejection_reason="Source quote is empty or too short (<5 characters)",
+            rejection_reason="Empty source quote",
         )
 
-    found, start, end, canonical = locate_verbatim_quote_offsets(full_text, quote)
-    if not found or start is None or end is None:
-        sample_q = quote[:60] + "..." if len(quote) > 60 else quote
+    offsets = find_normalized_substring(raw_quote, full_text)
+    if not offsets:
+        logger.warning(f"Verification rejected quote: '{raw_quote[:60]}...' not found in source text.")
         return VerificationResult(
             direction=direction,
             verified=False,
-            rejection_reason=f"Quote '{sample_q}' is not a verbatim substring of the judgment text.",
+            rejection_reason="Quote is not a verbatim substring of the judgment text",
         )
 
-    # Base verified direction
+    start, end = offsets
     updated_dir = direction.model_copy(
         update={
-            "source_quote": canonical,
             "quote_start": start,
             "quote_end": end,
+            "confidence": max(direction.confidence, 0.95),
         }
     )
 
+    # ------------------------------------------------------------------
+    # Verify deadline phrase and check proximity / adjacent extension
+    # ------------------------------------------------------------------
     deadline_verified = False
     quote_extended = False
+    raw_dl = direction.deadline_phrase
 
-    # Deadline phrase verification & sentence alignment
-    raw_dl = direction.deadline_phrase.strip() if direction.deadline_phrase else ""
-    if raw_dl:
-        dl_found, dl_start, dl_end, dl_canon = locate_verbatim_quote_offsets(full_text, raw_dl)
-        if dl_found and dl_start is not None and dl_end is not None:
+    if raw_dl and raw_dl.strip():
+        dl_offsets = find_normalized_substring(raw_dl, full_text)
+        if dl_offsets:
             deadline_verified = True
-            updated_dir = updated_dir.model_copy(update={"deadline_phrase": dl_canon})
+            dl_start, dl_end = dl_offsets
 
             # Check if deadline sits inside or adjacent to source_quote
             if start <= dl_start and dl_end <= end:
@@ -196,3 +144,35 @@ def verify_direction_quote(direction: ExtractedDirection, full_text: str) -> Ver
 def verify_all_directions(directions: list[ExtractedDirection], full_text: str) -> list[VerificationResult]:
     """Verify a collection of extracted directions against judgment text."""
     return [verify_direction_quote(d, full_text) for d in directions]
+
+
+def deduplicate_verified_directions(directions: list[ExtractedDirection]) -> list[ExtractedDirection]:
+    """Deduplicates directions for the same responsible party with overlapping/subsumed quote offsets.
+    
+    When an earlier direction was extended to include an adjacent deadline sentence,
+    a secondary extraction of the same sentence (e.g. penalty/default clause) becomes a duplicate.
+    Keeps the broader/more comprehensive direction and removes the subsumed fragment.
+    """
+    if len(directions) <= 1:
+        return directions
+
+    to_remove = set()
+    for i in range(len(directions)):
+        for j in range(len(directions)):
+            if i == j or j in to_remove:
+                continue
+            d1, d2 = directions[i], directions[j]
+            s1, e1 = d1.quote_start, d1.quote_end
+            s2, e2 = d2.quote_start, d2.quote_end
+            if s1 is not None and e1 is not None and s2 is not None and e2 is not None:
+                # Same responsible party
+                same_party = d1.responsible_party.strip().lower() == d2.responsible_party.strip().lower()
+                # Check if d2 is completely subsumed by d1
+                if s1 <= s2 and e1 >= e2 and (e1 - s1) > (e2 - s2) and same_party:
+                    to_remove.add(j)
+                    logger.info(
+                        f"Deduplicated direction: '{d2.action[:50]}' subsumed by '{d1.action[:50]}' "
+                        f"for party '{d1.responsible_party}' [{s2}:{e2}] in [{s1}:{e1}]"
+                    )
+
+    return [d for idx, d in enumerate(directions) if idx not in to_remove]

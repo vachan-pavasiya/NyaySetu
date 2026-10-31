@@ -60,6 +60,13 @@ PIPELINE:
 
 8 Status: COMPLIED only with a verified supporting quote from a later order. Contempt petition linked = evidence of non-compliance flag. PENDING if window not lapsed and no evidence. LAPSED\_NO\_RECORD if lapsed and no later order. Default UNVERIFIED. Never infer compliance from silence.
 
+STATUS MODEL:
+- Headline statuses are exactly three: COMPLIED, PENDING, UNVERIFIED.
+- COMPLIED only when a linked later order has a verified verbatim quote supporting compliance. Never infer compliance from silence.
+- PENDING when the deadline window is still open, or a later order shows an ongoing process (extension sought, compliance report awaited, notice issued on contempt).
+- UNVERIFIED when there is no evidence either way. If the window has lapsed, set flag overdue_no_record=true. DEPENDENT-bucket directions stay UNVERIFIED unless a later order gives evidence.
+- Secondary flags: CONTEMPT_FILED, EXTENSION_SOUGHT, OVERDUE_NO_RECORD, CONTEMPT_DISMISSED_FOR_DEFAULT.
+
 
 
 GUARDRAILS (scoring pillar):

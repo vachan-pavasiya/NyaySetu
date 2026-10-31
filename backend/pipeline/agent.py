@@ -1,7 +1,7 @@
 """Agentic extraction loop state machine.
 
 Role: Orchestrates explicit state machine:
-      SEGMENT -> EXTRACT -> VERIFY -> (if unverified) RETRY with feedback (max 2) -> DEADLINE RESOLUTION -> PERSIST.
+      SEGMENT -> EXTRACT -> VERIFY -> (if unverified) RETRY with feedback (max 2) -> DEADLINE RESOLUTION & DEDUP -> PERSIST.
 Data flow: Judgment ID/text -> Segmenter -> Extractor -> Verifier -> Retry Loop -> Deadline Resolver -> SQLite directions.
 """
 
@@ -17,7 +17,7 @@ from backend.app.models import Judgment, OperativeSegment, Direction
 from backend.pipeline.models import ExtractedDirection, OperativeSegmentResult, VerificationResult
 from backend.pipeline.segment import segment_operative_part
 from backend.pipeline.extract_directions import extract_directions_with_chunking
-from backend.pipeline.verify import verify_all_directions
+from backend.pipeline.verify import verify_all_directions, deduplicate_verified_directions
 from backend.pipeline.deadline import resolve_deadline
 
 logger = logging.getLogger("compliance_radar.agent")
@@ -162,8 +162,11 @@ class ComplianceExtractionAgent:
             feedback = "The following quotes were NOT verbatim matches in the source text:\n" + "\n".join(feedback_issues)
 
         # ------------------------------------------------------------------
-        # STATE 3: PERSIST WITH DETERMINISTIC DEADLINE RESOLUTION
+        # STATE 3: PERSIST WITH DETERMINISTIC DEADLINE RESOLUTION & DEDUP
         # ------------------------------------------------------------------
+        # Deduplicate verified directions with overlapping quotes for same party
+        verified_directions = deduplicate_verified_directions(verified_directions)
+
         persisted_records: List[Direction] = []
         for d in verified_directions:
             # Check if quote was verified (confidence >= 0.5 and offsets resolved)

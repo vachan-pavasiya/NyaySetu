@@ -19,6 +19,8 @@ from backend.pipeline.deadline import (
     parse_explicit_date,
     resolve_deadline,
 )
+from backend.pipeline.models import ExtractedDirection, PartyType, DirectionType
+from backend.pipeline.verify import deduplicate_verified_directions
 
 
 def test_number_word_parsing():
@@ -99,9 +101,25 @@ def test_real_phrase_twelve_weeks_from_communication():
     assert res_lapsed.deadline_status == "LAPSED"
 
 
-def test_real_phrase_months_from_date():
-    """Real DB phrase from WPA/24727/2022 (Judgment ID 28): 'within a period of two months from date'."""
+def test_real_phrase_months_from_date_ambiguous():
+    """Real DB phrase from WPA/24727/2022 (Judgment ID 28): 'within a period of two months from date'.
+    Does not clearly specify 'date of this order/judgment', so marked ambiguous (no computed window).
+    """
     phrase = "within a period of two months from date"
+    j_date = date(2023, 5, 15)
+
+    res = resolve_deadline(phrase, j_date, service_lag_days=30, as_of=date(2023, 6, 1))
+
+    assert res.anchor_type == "ambiguous"
+    assert res.window_start is None
+    assert res.window_end is None
+    assert res.deadline_status == "AMBIGUOUS"
+    assert "Ambiguous deadline phrase" in res.explanation_text
+
+
+def test_clear_date_of_order_phrase():
+    """Clear order date phrase: 'within a period of two months from the date of this order'."""
+    phrase = "within a period of two months from the date of this order"
     j_date = date(2023, 5, 15)
 
     res = resolve_deadline(phrase, j_date, service_lag_days=30, as_of=date(2023, 6, 1))
@@ -110,7 +128,6 @@ def test_real_phrase_months_from_date():
     assert res.offset_value == 2
     assert res.offset_unit == "months"
     assert res.is_estimated is False
-    # 2023-05-15 + 2 months = 2023-07-15
     assert res.window_start == date(2023, 7, 15)
     assert res.window_end == date(2023, 7, 15)
     assert res.deadline_status == "UPCOMING"
@@ -129,6 +146,27 @@ def test_urgent_unspecified_phrases():
         assert res.deadline_status == "URGENT_UNSPECIFIED"
         assert res.window_start == j_date
         assert res.window_end is None
+
+
+def test_dependent_on_prior_event():
+    """Phrases containing 'thereafter', 'after which', 'upon completion of', 'after compliance'."""
+    j_date = date(2023, 2, 28)
+
+    dependent_phrases = [
+        "within a week thereafter",
+        "within \na \nweek\nthereafter",
+        "after which compliance shall be submitted within 2 weeks",
+        "upon completion of the inquiry",
+        "after compliance of the direction",
+    ]
+
+    for p in dependent_phrases:
+        res = resolve_deadline(p, j_date)
+        assert res.anchor_type == "DEPENDENT_ON_PRIOR_EVENT"
+        assert res.window_start is None
+        assert res.window_end is None
+        assert res.deadline_status == "DEPENDENT"
+        assert res.explanation_text == "Deadline depends on an earlier step in the order; no date can be computed."
 
 
 def test_explicit_date_deadlines():
@@ -198,3 +236,44 @@ def test_llm_classification_fallback():
         assert res.window_start == j_date + relativedelta(weeks=12)
         assert res.window_end == res.window_start + relativedelta(days=30)
 
+
+def test_deduplicate_verified_directions():
+    """Overlapping direction for the same party where one quote subsumes the other is deduplicated."""
+    d1 = ExtractedDirection(
+        responsible_party="Treasury Officer",
+        party_type=PartyType.officer,
+        direction_type=DirectionType.mandatory,
+        action="Pay interest at 8% per annum",
+        source_quote="Full sentence containing the main direction and default clause.",
+        quote_start=100,
+        quote_end=300,
+        confidence=0.98,
+    )
+    # d2 is a smaller snippet of the default clause inside d1 for the same party
+    d2 = ExtractedDirection(
+        responsible_party="Treasury Officer",
+        party_type=PartyType.officer,
+        direction_type=DirectionType.consequential,
+        action="Pay additional 2% on default",
+        source_quote="default clause.",
+        quote_start=250,
+        quote_end=300,
+        confidence=0.95,
+    )
+    # d3 is for a DIFFERENT party, even if overlapping offsets
+    d3 = ExtractedDirection(
+        responsible_party="Director of Pension",
+        party_type=PartyType.department,
+        direction_type=DirectionType.mandatory,
+        action="Issue PPO",
+        source_quote="Director shall issue PPO",
+        quote_start=150,
+        quote_end=240,
+        confidence=0.95,
+    )
+
+    deduped = deduplicate_verified_directions([d1, d2, d3])
+    assert len(deduped) == 2
+    assert d1 in deduped
+    assert d2 not in deduped  # subsumed duplicate removed
+    assert d3 in deduped      # different party preserved
