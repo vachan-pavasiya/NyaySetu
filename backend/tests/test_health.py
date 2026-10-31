@@ -19,3 +19,4 @@ def test_health_check_returns_200_and_expected_structure():
     assert data["s3_bucket"] == "indian-high-court-judgments"
     assert data["service_lag_days"] == 30
     assert "timestamp" in data
+

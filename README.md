@@ -145,3 +145,4 @@ pytest backend/tests/test_eval.py -v
   - 6,134 Contempt Petitions (`CPAN`) explicitly linked to original WPAs for follow-up verification.
   - 100% digital vector text readable by PyMuPDF without OCR.
   - Complete calendar progression allowing mature compliance window resolution (`COMPLIED`, `LAPSED_NO_RECORD`).
+
