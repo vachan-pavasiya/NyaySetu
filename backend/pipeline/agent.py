@@ -1,8 +1,8 @@
 """Agentic extraction loop state machine.
 
 Role: Orchestrates explicit state machine:
-      SEGMENT -> EXTRACT -> VERIFY -> (if unverified) RETRY with feedback (max 2) -> PERSIST / LOW_CONFIDENCE.
-Data flow: Judgment ID/text -> Segmenter -> Extractor -> Verifier -> Retry Loop -> SQLite directions.
+      SEGMENT -> EXTRACT -> VERIFY -> (if unverified) RETRY with feedback (max 2) -> DEADLINE RESOLUTION -> PERSIST.
+Data flow: Judgment ID/text -> Segmenter -> Extractor -> Verifier -> Retry Loop -> Deadline Resolver -> SQLite directions.
 """
 
 import time
@@ -18,6 +18,7 @@ from backend.pipeline.models import ExtractedDirection, OperativeSegmentResult, 
 from backend.pipeline.segment import segment_operative_part
 from backend.pipeline.extract_directions import extract_directions_with_chunking
 from backend.pipeline.verify import verify_all_directions
+from backend.pipeline.deadline import resolve_deadline
 
 logger = logging.getLogger("compliance_radar.agent")
 
@@ -161,12 +162,16 @@ class ComplianceExtractionAgent:
             feedback = "The following quotes were NOT verbatim matches in the source text:\n" + "\n".join(feedback_issues)
 
         # ------------------------------------------------------------------
-        # STATE 3: PERSIST
+        # STATE 3: PERSIST WITH DETERMINISTIC DEADLINE RESOLUTION
         # ------------------------------------------------------------------
         persisted_records: List[Direction] = []
         for d in verified_directions:
             # Check if quote was verified (confidence >= 0.5 and offsets resolved)
             is_verified = (d.quote_start is not None and d.quote_end is not None and d.confidence >= 0.5)
+
+            # Deterministic deadline resolution
+            parsed_dl = resolve_deadline(d.deadline_phrase, self.judgment.judgment_date)
+
             record = Direction(
                 judgment_id=self.judgment.id,
                 operative_segment_id=op_seg.id,
@@ -181,6 +186,14 @@ class ComplianceExtractionAgent:
                 confidence=d.confidence,
                 quote_verified=is_verified,
                 extraction_method=getattr(d, "extraction_method", "gemini"),
+                anchor_type=parsed_dl.anchor_type,
+                offset_value=parsed_dl.offset_value,
+                offset_unit=parsed_dl.offset_unit,
+                deadline_window_start=parsed_dl.window_start,
+                deadline_window_end=parsed_dl.window_end,
+                is_estimated=parsed_dl.is_estimated,
+                explanation_text=parsed_dl.explanation_text,
+                deadline_status=parsed_dl.deadline_status,
             )
             db.add(record)
             persisted_records.append(record)
@@ -210,6 +223,14 @@ class ComplianceExtractionAgent:
                     "quote_verified": r.quote_verified,
                     "confidence": r.confidence,
                     "extraction_method": r.extraction_method,
+                    "anchor_type": r.anchor_type,
+                    "offset_value": r.offset_value,
+                    "offset_unit": r.offset_unit,
+                    "deadline_window_start": str(r.deadline_window_start) if r.deadline_window_start else None,
+                    "deadline_window_end": str(r.deadline_window_end) if r.deadline_window_end else None,
+                    "is_estimated": r.is_estimated,
+                    "explanation_text": r.explanation_text,
+                    "deadline_status": r.deadline_status,
                 }
                 for r in persisted_records
             ],

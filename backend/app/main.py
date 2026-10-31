@@ -110,6 +110,13 @@ class DirectionItem(BaseModel):
     confidence: float
     deadline_status: str
     extraction_method: Optional[str] = "gemini"
+    anchor_type: Optional[str] = None
+    offset_value: Optional[int] = None
+    offset_unit: Optional[str] = None
+    deadline_window_start: Optional[str] = None
+    deadline_window_end: Optional[str] = None
+    is_estimated: bool = False
+    explanation_text: Optional[str] = None
     created_at: str
 
 
@@ -451,8 +458,15 @@ def get_judgment_directions(judgment_id: int, db: Session = Depends(get_db)):
             quote_end=r.quote_end,
             quote_verified=r.quote_verified,
             confidence=r.confidence,
-            deadline_status=r.deadline_status or "UNVERIFIED",
+            deadline_status=r.deadline_status or "NO_DEADLINE",
             extraction_method=r.extraction_method or "gemini",
+            anchor_type=r.anchor_type,
+            offset_value=r.offset_value,
+            offset_unit=r.offset_unit,
+            deadline_window_start=r.deadline_window_start.isoformat() if r.deadline_window_start else None,
+            deadline_window_end=r.deadline_window_end.isoformat() if r.deadline_window_end else None,
+            is_estimated=bool(r.is_estimated),
+            explanation_text=r.explanation_text,
             created_at=r.created_at.isoformat(),
         )
         for r in records

@@ -126,9 +126,14 @@ class Direction(Base):
     extraction_method = Column(String(32), default="gemini", index=True)  # gemini, fallback
 
     # Resolved Deadline Window (Deterministic math)
+    anchor_type = Column(String(32), nullable=True)  # judgment_date, receipt, explicit_date, hearing, none
+    offset_value = Column(Integer, nullable=True)
+    offset_unit = Column(String(32), nullable=True)  # days, weeks, months, immediate, none
     deadline_window_start = Column(Date, nullable=True, index=True)
     deadline_window_end = Column(Date, nullable=True, index=True)
-    deadline_status = Column(String(32), default="UNVERIFIED", index=True)  # COMPLIED, PENDING, LAPSED_NO_RECORD, UNVERIFIED
+    is_estimated = Column(Boolean, default=False)
+    explanation_text = Column(Text, nullable=True)
+    deadline_status = Column(String(32), default="NO_DEADLINE", index=True)  # UPCOMING, IN_WINDOW, LAPSED, NO_DEADLINE, URGENT_UNSPECIFIED
 
     created_at = Column(DateTime, default=utcnow)
 
