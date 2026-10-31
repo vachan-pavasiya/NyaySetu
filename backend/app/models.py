@@ -1,6 +1,6 @@
 """Database ORM models module.
 
-Role: Defines schema for judgments, operative segments, directions, case links, and LLM cache.
+Role: Defines schema for judgments, ingestion jobs, operative segments, directions, case links, and LLM cache.
 Data flow: Ingestion & agent pipeline -> ORM entities -> SQLite tables for ledger, calendar, and UI.
 """
 
@@ -27,33 +27,60 @@ def utcnow():
 
 
 class Judgment(Base):
-    """Judgment record ingested from public high court datasets."""
+    """Judgment record ingested from public high court datasets.
+    
+    Fields required by Phase 1:
+    id, court, year, case_number, cnr, judgment_date, petitioner, respondent,
+    s3_key, text, text_quality, status, error, created_at.
+    """
 
     __tablename__ = "judgments"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    cnr = Column(String(64), index=True, nullable=True)
     court = Column(String(128), index=True, nullable=False)
     year = Column(Integer, index=True, nullable=False)
     case_number = Column(String(256), index=True, nullable=True)
+    cnr = Column(String(64), index=True, nullable=True)
+    judgment_date = Column(Date, index=True, nullable=True)
     petitioner = Column(Text, nullable=True)
     respondent = Column(Text, nullable=True)
-    judgment_date = Column(Date, index=True, nullable=True)
-    bench = Column(String(512), nullable=True)
-    pdf_s3_key = Column(String(512), nullable=True)
-    local_pdf_path = Column(String(512), nullable=True)
-    
-    # Text Extraction & Quality
-    text_status = Column(String(32), default="PENDING", index=True)  # PENDING, SUCCESS, FAILED_UNREADABLE
-    quality_score = Column(Float, default=0.0)
-    raw_text = Column(Text, nullable=True)
-    failure_reason = Column(Text, nullable=True)
-
+    s3_key = Column(String(512), index=True, nullable=True)
+    text = Column(Text, nullable=True)
+    text_quality = Column(Float, default=0.0)
+    status = Column(String(32), default="INGESTED", index=True)  # INGESTED, FAILED_UNREADABLE, FAILED_DOWNLOAD
+    error = Column(Text, nullable=True)
     created_at = Column(DateTime, default=utcnow)
 
-    # Relationships
+    # Relationships for downstream phases
     segments = relationship("OperativeSegment", back_populates="judgment", cascade="all, delete-orphan")
     directions = relationship("Direction", back_populates="judgment", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("idx_judgment_cnr", "cnr"),
+        Index("idx_judgment_case_number", "case_number"),
+        Index("idx_judgment_court_year", "court", "year"),
+        Index("idx_judgment_s3_key", "s3_key"),
+    )
+
+
+class IngestJob(Base):
+    """Tracks background ingestion jobs with live status and progress."""
+
+    __tablename__ = "ingest_jobs"
+
+    id = Column(String(36), primary_key=True, index=True)
+    court = Column(String(128), nullable=False)
+    year = Column(Integer, nullable=False)
+    limit = Column(Integer, nullable=False)
+    status = Column(String(32), default="QUEUED", index=True)  # QUEUED, RUNNING, COMPLETED, FAILED
+    total = Column(Integer, default=0)
+    processed = Column(Integer, default=0)
+    succeeded = Column(Integer, default=0)
+    failed = Column(Integer, default=0)
+    error_summary = Column(Text, nullable=True)
+    avg_seconds_per_doc = Column(Float, default=0.0)
+    started_at = Column(DateTime, default=utcnow)
+    completed_at = Column(DateTime, nullable=True)
 
 
 class OperativeSegment(Base):
@@ -134,7 +161,3 @@ class LLMCache(Base):
     model_name = Column(String(64), nullable=False)
     response_json = Column(Text, nullable=False)
     created_at = Column(DateTime, default=utcnow)
-
-    __table_args__ = (
-        Index("idx_llm_cache_lookup", "cache_key"),
-    )
