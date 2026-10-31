@@ -171,7 +171,8 @@ You are given:
 Your job is to determine what the follow-up order reveals about compliance with the original direction.
 
 VERDICT OPTIONS (choose EXACTLY ONE):
-- COMPLIANCE_SHOWN: The later order records or finds that compliance has occurred (e.g. 'recording compliance of the order', 'compliance report filed and accepted', 'reasoned order passed').
+- COMPLIANCE_SHOWN: The later order records or finds that compliance has occurred (e.g. 'recording compliance of the order', 'compliance report filed and accepted', 'reasoned order passed', 'advocates submit order has been complied with').
+- ONGOING_PROCESS: The later order shows that compliance is actively in progress or ongoing efforts are taking place (e.g., authorities directed to continue efforts, meetings scheduled to consider transfer/representation, compliance report taken on record but further action directed/pending).
 - NON_COMPLIANCE_ALLEGED: The follow-up order is a contempt petition alleging non-compliance, but no finding of compliance is recorded yet.
 - NOTICE_ISSUED: The court issued a notice, rule, or directed personal appearance / affidavit of compliance.
 - EXTENSION_SOUGHT: The respondent prayed for extension of time to comply, or the court granted an extension.
@@ -183,6 +184,7 @@ OUTPUT FORMAT:
 Return a strictly valid JSON object with:
 {
   "verdict": "<ONE_OF_THE_ABOVE>",
+  "evidence_strength": "COURT_RECORDED | PARTY_SUBMISSION | null",
   "supporting_quote": "<EXACT VERBATIM SUBSTRING from the later order text>",
   "reasoning": "<Concise explanation of how the quote supports the verdict>"
 }
@@ -190,21 +192,87 @@ Return a strictly valid JSON object with:
 CRITICAL RULES:
 1. 'supporting_quote' MUST be an EXACT, VERBATIM substring of the follow-up order text. Do not paraphrase or alter even one word.
 2. Contempt dismissed for default or absence of petitioner is DISMISSED_FOR_DEFAULT, NEVER COMPLIANCE_SHOWN.
+3. For COMPLIANCE_SHOWN:
+   - Set 'evidence_strength' to 'COURT_RECORDED' if the court itself finds or records compliance (e.g. 'The alleged contemnor, therefore, has complied...', 'recording compliance of the order', 'order under contempt has substantially been complied with').
+   - Set 'evidence_strength' to 'PARTY_SUBMISSION' if counsel or party states/submits that the order has been complied with (e.g. 'submitted on behalf of both the parties that the order has been complied with', 'learned advocates submit that the order-in-question has been complied with').
 """
+
+
+def determine_evidence_strength(supporting_quote: Optional[str], full_text: Optional[str] = "") -> Optional[str]:
+    """Determine whether evidence is COURT_RECORDED or PARTY_SUBMISSION.
+    
+    COURT_RECORDED: The court itself records or makes a finding of compliance.
+    PARTY_SUBMISSION: Counsel or a party submits / states that compliance was made.
+    """
+    if not supporting_quote:
+        return None
+    quote_lower = supporting_quote.lower()
+    full_lower = full_text.lower() if full_text else quote_lower
+
+    party_terms = (
+        "submit", "submitted", "submission", "submits",
+        "learned advocate", "learned advocates", "advocate appears",
+        "counsel for the", "learned counsel", "on behalf of both",
+        "on behalf of the", "advocate for the",
+    )
+    court_direct_terms = (
+        "alleged contemnor, therefore, has complied",
+        "therefore, has complied",
+        "recording compliance",
+        "substantially been complied with",
+        "we dispose of the contempt application by recording compliance",
+        "contemnor has complied with this court",
+    )
+
+    # 1. Direct court findings
+    for c_term in court_direct_terms:
+        if c_term in quote_lower:
+            return "COURT_RECORDED"
+
+    # 2. Check for party submissions
+    for p_term in party_terms:
+        if p_term in quote_lower:
+            # If the court weighed the submission and reached an affirmative judicial finding
+            if "it appears" in quote_lower and "substantially been complied with" in quote_lower:
+                return "COURT_RECORDED"
+            return "PARTY_SUBMISSION"
+
+    for c_term in court_direct_terms:
+        if c_term in full_lower:
+            return "COURT_RECORDED"
+
+    for p_term in party_terms:
+        if p_term in full_lower:
+            return "PARTY_SUBMISSION"
+
+    return "COURT_RECORDED"
 
 
 def classify_follow_up_order_heuristic(follow_up_text: str) -> Dict[str, Any]:
     """Deterministic fallback classification when LLM is unavailable."""
     norm = normalize_whitespace(follow_up_text).lower()
 
-    if "recording compliance" in norm or "compliance of the order" in norm:
+    if "continues to make efforts" in norm or "shall continue to do so" in norm or "shall sit with" in norm:
+        m = re.search(r"(?:continues\s+to\s+make\s+efforts[^\n\.]*|shall\s+continue\s+to\s+do\s+so[^\n\.]*|shall\s+sit\s+with[^\n\.]*)", follow_up_text, re.I)
+        quote = m.group(0) if m else "continues to make efforts"
+        return {
+            "verdict": "ONGOING_PROCESS",
+            "evidence_strength": None,
+            "supporting_quote": quote,
+            "reasoning": "Follow-up order indicates an ongoing process or efforts continuing towards compliance.",
+            "method": "heuristic",
+        }
+
+    if "recording compliance" in norm or "compliance of the order" in norm or "has complied with" in norm or "complied with" in norm:
         # Locate exact quote
-        m = re.search(r"(?:recording\s+compliance\s+of\s+the\s+order[^.\n]+|complied\s+with[^.\n]+)", follow_up_text, re.I)
+        m = re.search(r"(?:recording\s+compliance\s+of\s+the\s+order[^.\n]+|alleged\s+contemnor[^\n\.]+complied[^\n\.]+|complied\s+with[^.\n]+)", follow_up_text, re.I)
         quote = m.group(0) if m else "recording compliance"
+        strength = determine_evidence_strength(quote, follow_up_text)
         return {
             "verdict": "COMPLIANCE_SHOWN",
+            "evidence_strength": strength,
             "supporting_quote": quote,
-            "reasoning": "Order explicitly records compliance.",
+            "reasoning": "Order records compliance.",
             "method": "heuristic",
         }
 
@@ -213,6 +281,7 @@ def classify_follow_up_order_heuristic(follow_up_text: str) -> Dict[str, Any]:
         quote = m.group(0) if m else "dismissed for default"
         return {
             "verdict": "DISMISSED_FOR_DEFAULT",
+            "evidence_strength": None,
             "supporting_quote": quote,
             "reasoning": "Contempt application dismissed due to absence of parties; not evidence of compliance.",
             "method": "heuristic",
@@ -223,6 +292,7 @@ def classify_follow_up_order_heuristic(follow_up_text: str) -> Dict[str, Any]:
         quote = m.group(0) if m else "extension of time"
         return {
             "verdict": "EXTENSION_SOUGHT",
+            "evidence_strength": None,
             "supporting_quote": quote,
             "reasoning": "Extension of time sought by contemnors.",
             "method": "heuristic",
@@ -233,6 +303,7 @@ def classify_follow_up_order_heuristic(follow_up_text: str) -> Dict[str, Any]:
         quote = m.group(0) if m else "rule be issued"
         return {
             "verdict": "NOTICE_ISSUED",
+            "evidence_strength": None,
             "supporting_quote": quote,
             "reasoning": "Contempt rule or notice issued.",
             "method": "heuristic",
@@ -243,6 +314,7 @@ def classify_follow_up_order_heuristic(follow_up_text: str) -> Dict[str, Any]:
         quote = m.group(0) if m else "alleging violation"
         return {
             "verdict": "NON_COMPLIANCE_ALLEGED",
+            "evidence_strength": None,
             "supporting_quote": quote,
             "reasoning": "Contempt filed alleging non-compliance.",
             "method": "heuristic",
@@ -250,6 +322,7 @@ def classify_follow_up_order_heuristic(follow_up_text: str) -> Dict[str, Any]:
 
     return {
         "verdict": "DISPOSED_NO_FINDING",
+        "evidence_strength": None,
         "supporting_quote": follow_up_text[:100].strip(),
         "reasoning": "Follow-up order disposed of without explicit compliance finding.",
         "method": "heuristic",

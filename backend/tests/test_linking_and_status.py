@@ -189,5 +189,113 @@ def test_status_model_rules():
     status, flags, reason, _ = evaluate_direction_status(d_lapsed, [ev_complied])
     assert status == "COMPLIED"
     assert flags["overdue_no_record"] is False
+    assert flags["contempt_filed"] is True, "Evidence from CPAN case must set contempt_filed flag"
     assert "Verified compliance recorded" in reason
+
+
+def test_status_model_guards_and_ongoing_process():
+    """Verify guards preventing COMPLIED on dismissals, liberties, and ongoing processes."""
+    # 1. Liberty direction type must never be COMPLIED
+    d_liberty = Direction(
+        id=201,
+        judgment_id=1,
+        responsible_party="Appellant",
+        direction_type="liberty",
+        action="At liberty to make a representation",
+        deadline_status="LAPSED",
+        deadline_window_end=date(2023, 1, 1),
+    )
+    ev_complied = Evidence(
+        id=401,
+        direction_id=201,
+        source_case_number="CPAN/886/2022",
+        source_date=date(2023, 1, 10),
+        verdict="COMPLIANCE_SHOWN",
+        supporting_quote="The alleged contemnor, therefore, has complied with this Court’s order.",
+        verified=True,
+    )
+    status, flags, reason, _ = evaluate_direction_status(d_liberty, [ev_complied], has_contempt_link=True)
+    assert status == "UNVERIFIED", "Liberty to a party must never be marked COMPLIED"
+    assert flags["contempt_filed"] is True
+
+    # 2. Ongoing process (e.g. DI continues to make efforts) must resolve to PENDING, not COMPLIED
+    d_ongoing = Direction(
+        id=202,
+        judgment_id=2,
+        responsible_party="DI of Schools",
+        action="Process transfer application",
+        deadline_status="LAPSED",
+        deadline_window_end=date(2022, 5, 1),
+    )
+    ev_ongoing = Evidence(
+        id=402,
+        direction_id=202,
+        source_case_number="CPAN/1262/2022",
+        source_date=date(2023, 4, 21),
+        verdict="COMPLIANCE_SHOWN",
+        supporting_quote="Compliance report filed by the District Inspector of Schools (SE), Malda is taken on record.",
+        reasoning="District Inspector continues to make efforts to give relief to the petitioner.",
+        verified=True,
+    )
+    status, flags, reason, _ = evaluate_direction_status(d_ongoing, [ev_ongoing], has_contempt_link=True)
+    assert status == "PENDING", "Ongoing process must resolve to PENDING, not COMPLIED"
+    assert flags["contempt_filed"] is True
+
+    # 3. Disposed without finding must remain UNVERIFIED
+    d_disposed = Direction(
+        id=203,
+        judgment_id=3,
+        responsible_party="Police",
+        action="Ensure status quo",
+        deadline_status="LAPSED",
+        deadline_window_end=date(2022, 1, 1),
+    )
+    ev_disposed = Evidence(
+        id=403,
+        direction_id=203,
+        source_case_number="CPAN/222/2023",
+        source_date=date(2023, 4, 27),
+        verdict="DISPOSED_NO_FINDING",
+        supporting_quote="The contempt application is disposed of.",
+        verified=True,
+    )
+    status, flags, reason, _ = evaluate_direction_status(d_disposed, [ev_disposed], has_contempt_link=True)
+    assert status == "UNVERIFIED", "Disposed without finding must never result in COMPLIED"
+    assert flags["contempt_filed"] is True
+
+
+def test_ongoing_process_verdict_and_evidence_refinements():
+    """Verify ONGOING_PROCESS verdict, evidence_strength, and CASE_LEVEL scope."""
+    from backend.pipeline.linking import determine_evidence_strength
+
+    # 1. Primary ONGOING_PROCESS verdict
+    d = Direction(
+        id=301,
+        judgment_id=10,
+        responsible_party="Commission",
+        action="Consider transfer request",
+        deadline_status="LAPSED",
+        deadline_window_end=date(2023, 1, 1),
+    )
+    ev_ongoing = Evidence(
+        id=501,
+        direction_id=301,
+        source_case_number="CPAN/1263/2022",
+        source_date=date(2023, 2, 27),
+        verdict="ONGOING_PROCESS",
+        supporting_quote="the petitioner shall sit with the Chairman of the School Service Commission",
+        verified=True,
+    )
+    status, flags, reason, _ = evaluate_direction_status(d, [ev_ongoing], has_contempt_link=True)
+    assert status == "PENDING"
+    assert "ongoing compliance process" in reason
+
+    # 2. evidence_strength: COURT_RECORDED vs PARTY_SUBMISSION
+    court_quote = "The alleged contemnor, therefore, has complied with this Court’s order."
+    party_quote = "It is submitted on behalf of both the parties that the order under contempt has been complied with."
+    advocate_quote = "The learned advocates for the parties submit that the order-in-question has been complied with."
+
+    assert determine_evidence_strength(court_quote) == "COURT_RECORDED"
+    assert determine_evidence_strength(party_quote) == "PARTY_SUBMISSION"
+    assert determine_evidence_strength(advocate_quote) == "PARTY_SUBMISSION"
 

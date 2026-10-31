@@ -137,6 +137,9 @@ class EvidenceItem(BaseModel):
     supporting_quote: Optional[str] = None
     reasoning: Optional[str] = None
     verified: bool = False
+    evidence_strength: Optional[str] = None  # COURT_RECORDED vs PARTY_SUBMISSION
+    evidence_scope: Optional[str] = None  # CASE_LEVEL vs DIRECTION_SPECIFIC
+    directions_covered_count: Optional[int] = None
     model_used: Optional[str] = None
     method: Optional[str] = None
     created_at: str
@@ -162,6 +165,9 @@ class DirectionDetailResponse(BaseModel):
     compliance_status: str
     flags: dict
     explanation_text: Optional[str] = None
+    evidence_strength: Optional[str] = None  # COURT_RECORDED vs PARTY_SUBMISSION
+    evidence_scope: Optional[str] = None  # CASE_LEVEL vs DIRECTION_SPECIFIC
+    directions_covered_count: Optional[int] = None
     evidence: List[EvidenceItem]
     created_at: str
 
@@ -576,12 +582,17 @@ def get_direction_detail(direction_id: int, db: Session = Depends(get_db)):
             supporting_quote=e.supporting_quote,
             reasoning=e.reasoning,
             verified=bool(e.verified),
+            evidence_strength=e.evidence_strength,
+            evidence_scope=e.evidence_scope,
+            directions_covered_count=e.directions_covered_count,
             model_used=e.model_used,
             method=e.method,
             created_at=e.created_at.isoformat() if e.created_at else "",
         )
         for e in d.evidence_list
     ]
+
+    primary_ev = d.evidence_list[0] if d.evidence_list else None
 
     return DirectionDetailResponse(
         id=d.id,
@@ -608,6 +619,9 @@ def get_direction_detail(direction_id: int, db: Session = Depends(get_db)):
             "contempt_dismissed_for_default": bool(d.contempt_dismissed_for_default),
         },
         explanation_text=d.explanation_text,
+        evidence_strength=primary_ev.evidence_strength if primary_ev else None,
+        evidence_scope=primary_ev.evidence_scope if primary_ev else None,
+        directions_covered_count=primary_ev.directions_covered_count if primary_ev else None,
         evidence=ev_items,
         created_at=d.created_at.isoformat() if d.created_at else "",
     )

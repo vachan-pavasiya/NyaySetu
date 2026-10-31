@@ -192,9 +192,12 @@ class Evidence(Base):
     source_judgment_id = Column(Integer, ForeignKey("judgments.id"), nullable=True, index=True)
     source_case_number = Column(String(256), nullable=True)
     source_date = Column(Date, nullable=True)
-    verdict = Column(String(64), nullable=False)  # COMPLIANCE_SHOWN, NON_COMPLIANCE_ALLEGED, NOTICE_ISSUED, EXTENSION_SOUGHT, DISMISSED_FOR_DEFAULT, DISPOSED_NO_FINDING, UNRELATED
+    verdict = Column(String(64), nullable=False)  # COMPLIANCE_SHOWN, ONGOING_PROCESS, NON_COMPLIANCE_ALLEGED, NOTICE_ISSUED, EXTENSION_SOUGHT, DISMISSED_FOR_DEFAULT, DISPOSED_NO_FINDING, UNRELATED
     reasoning = Column(Text, nullable=True)
     verified = Column(Boolean, default=False)
+    evidence_strength = Column(String(50), nullable=True)  # COURT_RECORDED vs PARTY_SUBMISSION
+    evidence_scope = Column(String(50), nullable=True)  # CASE_LEVEL vs DIRECTION_SPECIFIC
+    directions_covered_count = Column(Integer, nullable=True)  # Count of directions covered by this order/quote
     model_used = Column(String(64), nullable=True)
     method = Column(String(32), default="gemini")
     created_at = Column(DateTime, default=utcnow)
