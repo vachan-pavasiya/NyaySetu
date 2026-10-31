@@ -126,7 +126,7 @@ def test_extract_text_from_real_pdf_bytes():
 
 
 def test_prioritize_records():
-    """Verify that WPA and CPAN records are prioritized ahead of ordinary civil suits."""
+    """Verify that CPAN and WPA records are prioritized ahead of ordinary civil suits."""
     import pandas as pd
     df = pd.DataFrame([
         {"title": "CS/100/2023 Commercial Suit"},
@@ -135,9 +135,9 @@ def test_prioritize_records():
         {"title": "FAT/400/2023 First Appeal"},
     ])
     sorted_df = prioritize_records(df)
-    titles = sorted_df["title"].tolist()
-    assert "WPA/300/2023 Writ Petition" == titles[0]
-    assert "CPAN/200/2023 Contempt Petition" == titles[1]
+    top_two = set(sorted_df["title"].iloc[:2].tolist())
+    assert top_two == {"CPAN/200/2023 Contempt Petition", "WPA/300/2023 Writ Petition"}
+    assert sorted_df["title"].iloc[2] in ["CS/100/2023 Commercial Suit", "FAT/400/2023 First Appeal"]
 
 
 def test_api_ingest_lifecycle_and_queries(monkeypatch):

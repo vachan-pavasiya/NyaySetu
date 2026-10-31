@@ -3,3 +3,4 @@ from backend.pipeline.ingest import main, run_ingestion
 
 if __name__ == "__main__":
     main()
+

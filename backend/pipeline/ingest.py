@@ -181,14 +181,19 @@ def download_pdf_from_s3(s3_client, bucket: str, s3_key: str) -> Tuple[Optional[
 
 
 def prioritize_records(df: pd.DataFrame) -> pd.DataFrame:
-    """Sort DataFrame preferring writ petitions and contempt petitions."""
+    """Sort DataFrame preferring contempt petitions and writ petitions.
+    
+    Priority 1: Contempt petitions (CPAN, CONT) to ensure ground-truth compliance linkage data.
+    Priority 2: Writ petitions (WPA, WP, CWP) directing state authorities.
+    Priority 3: Other miscellaneous jurisdictions.
+    """
     def get_priority(title: str) -> int:
         if not isinstance(title, str):
             return 3
         t = title.upper()
-        if any(wp in t for wp in ["WPA", "W.P", "WP", "CWP", "WRIT"]):
-            return 1
         if any(cp in t for cp in ["CPAN", "CONT", "CONTEMPT"]):
+            return 1
+        if any(wp in t for wp in ["WPA", "W.P", "WP", "CWP", "WRIT"]):
             return 2
         return 3
 
@@ -333,10 +338,38 @@ def run_ingestion(
 
     # Filter and prioritize (Writ Petitions & Contempt Petitions)
     df_sorted = prioritize_records(df_meta)
-    target_records = df_sorted.head(limit).to_dict(orient="records")
+
+    # Filter out already ingested records so we ingest NEW judgments
+    with SessionLocal() as check_db:
+        existing_cnrs = set(
+            r[0] for r in check_db.query(Judgment.cnr).filter(
+                Judgment.cnr.isnot(None),
+                Judgment.status == "INGESTED"
+            )
+        )
+        existing_keys = set(
+            r[0] for r in check_db.query(Judgment.s3_key).filter(
+                Judgment.s3_key.isnot(None),
+                Judgment.status == "INGESTED"
+            )
+        )
+
+    def is_unprocessed(row: Any) -> bool:
+        cnr = row.get("cnr")
+        if cnr and cnr in existing_cnrs:
+            return False
+        pdf_link = row.get("pdf_link", "") or ""
+        filename = Path(pdf_link).name
+        s3_key = f"data/pdf/year={year}/court={court_code}/bench={bench}/{filename}"
+        if s3_key in existing_keys:
+            return False
+        return True
+
+    df_candidates = df_sorted[df_sorted.apply(is_unprocessed, axis=1)]
+    target_records = df_candidates.head(limit).to_dict(orient="records")
 
     total_target = len(target_records)
-    logger.info(f"Selected {total_target} prioritized judgment records to ingest.")
+    logger.info(f"Selected {total_target} new prioritized judgment records to ingest ({len(existing_keys)} already cached in database).")
 
     processed = 0
     succeeded = 0
@@ -463,3 +496,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
