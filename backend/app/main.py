@@ -1006,18 +1006,22 @@ def get_direction_timeline(direction_id: int, db: Session = Depends(get_db)):
 @app.get("/cases/{cnr:path}/timeline", response_model=CaseTimelineResponse, tags=["Timeline"])
 def get_case_timeline(cnr: str, db: Session = Depends(get_db)):
     """Retrieve unified case timeline by CNR or Case Number."""
-    # Support lookup by CNR or Case Number
+    norm_cnr = normalize_case_citation(cnr)
     j = (
         db.query(Judgment)
-        .filter((Judgment.cnr == cnr) | (Judgment.case_number == cnr))
+        .filter((Judgment.cnr == cnr) | (Judgment.case_number == cnr) | (Judgment.case_number == norm_cnr))
         .first()
     )
     if not j:
-        # Case insensitive case number lookup
-        j = db.query(Judgment).filter(Judgment.case_number.ilike(cnr)).first()
+        j = db.query(Judgment).filter(
+            (Judgment.case_number.ilike(cnr)) | (Judgment.case_number.ilike(norm_cnr))
+        ).first()
 
     if not j:
-        raise HTTPException(status_code=404, detail=f"Case with CNR / Case Number '{cnr}' not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Case '{cnr}' has not been ingested yet. Please trigger ingestion or select an available case."
+        )
 
     events: List[DirectionTimelineEvent] = []
 

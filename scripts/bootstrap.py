@@ -134,7 +134,7 @@ def run_bootstrap(exit_on_failure: bool = True) -> bool:
             # 3. Ingest real judgments
             needed = max(limit - existing_judgments, 5) if not force else limit
             print(f"\n[BOOTSTRAP 4/5] Ingesting {needed} real judgments from S3 ({court} / {year})...")
-            ingest_res = run_ingestion(court=court, year=year, limit=needed, db=db)
+            ingest_res = run_ingestion(court=court, year=year, limit=needed)
             print(f"[BOOTSTRAP 4/5] Ingestion completed: {ingest_res.get('succeeded')} succeeded, {ingest_res.get('failed')} failed.")
 
         # 4. Analyze unanalyzed judgments

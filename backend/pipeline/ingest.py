@@ -306,6 +306,8 @@ def run_ingestion(
     year: int = 2023,
     limit: int = 100,
     job_id: Optional[str] = None,
+    *args,
+    **kwargs,
 ) -> Dict[str, Any]:
     """Execute live ingestion batch from S3 parquet metadata into SQLite."""
     court_code, bench = resolve_court_and_bench(court)
