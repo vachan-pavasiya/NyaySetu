@@ -10,25 +10,45 @@ interface TimelineViewProps {
   onSelectJudgment?: (judgmentId: number) => void;
 }
 
+interface CaseOption {
+  caseNo: string;
+  label: string;
+}
+
 export const TimelineView: React.FC<TimelineViewProps> = ({
   initialCaseNumber,
   onSelectJudgment,
 }) => {
-  const sampleCases = [
-    { caseNo: 'MAT/408/2022', label: 'MAT 408 of 2022 (Linked: CPAN 886 of 2022)' },
-    { caseNo: 'FMA/1879/2019', label: 'FMA 1879 of 2019 (Linked: CPAN 1261 of 2019)' },
-    { caseNo: 'WPA/2222/2022', label: 'WPA 2222 of 2022 (Linked: CPAN 1262 of 2022)' },
-    { caseNo: 'WPA/5477/2022', label: 'WPA 5477 of 2022 (Linked: CPAN 1263 of 2022)' },
-    { caseNo: 'WPA/7971/2021', label: 'WPA 7971 of 2021 (Linked: CPAN 926 of 2022)' },
-    { caseNo: 'WPA/17378/2022', label: 'WPA 17378 of 2022 (Linked: CPAN 810 of 2023)' },
-    { caseNo: 'WPA/4466/2022', label: 'WPA 4466 of 2022 (Linked: CPAN 446 of 2023)' },
-    { caseNo: 'WPA/18860/2021', label: 'WPA 18860 of 2021 (Linked: CPAN 222 of 2023)' },
-  ];
-
-  const [selectedCase, setSelectedCase] = useState<string>(initialCaseNumber || sampleCases[0].caseNo);
+  const [availableCases, setAvailableCases] = useState<CaseOption[]>([]);
+  const [selectedCase, setSelectedCase] = useState<string>(initialCaseNumber || '');
   const [timelineData, setTimelineData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 1. Fetch available cases dynamically from API
+  useEffect(() => {
+    const loadCases = async () => {
+      try {
+        const res = await fetch(getApiUrl('/cases'));
+        if (res.ok) {
+          const list: Array<{ case_number: string; cnr: string; title: string }> = await res.json();
+          if (list && list.length > 0) {
+            const opts: CaseOption[] = list.map((item) => ({
+              caseNo: item.case_number,
+              label: `${item.case_number} (${item.title || item.cnr || ''})`.slice(0, 60),
+            }));
+            setAvailableCases(opts);
+            if (!initialCaseNumber && !selectedCase) {
+              setSelectedCase(opts[0].caseNo);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch dynamic cases list, falling back to judgments:', e);
+      }
+    };
+    loadCases();
+  }, []);
 
   useEffect(() => {
     if (initialCaseNumber) {
@@ -37,12 +57,16 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   }, [initialCaseNumber]);
 
   const fetchTimeline = async (caseNumber: string) => {
+    if (!caseNumber) return;
     setLoading(true);
     setError(null);
     try {
       const encoded = encodeURIComponent(caseNumber);
       const res = await fetch(getApiUrl(`/cases/${encoded}/timeline`));
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.detail || `HTTP error ${res.status}`);
+      }
       const data = await res.json();
       setTimelineData(data);
     } catch (err: any) {
@@ -54,7 +78,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   };
 
   useEffect(() => {
-    fetchTimeline(selectedCase);
+    if (selectedCase) {
+      fetchTimeline(selectedCase);
+    }
   }, [selectedCase]);
 
   return (
@@ -69,12 +95,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             <select
               value={selectedCase}
               onChange={(e) => setSelectedCase(e.target.value)}
-              className="px-2.5 py-1.5 font-mono text-xs border border-[var(--border-rule-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] rounded-[2px] focus:outline-none focus:ring-1 focus:ring-[var(--accent-oxblood)]"
+              className="px-2.5 py-1.5 font-mono text-xs border border-[var(--border-rule-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] rounded-[2px] focus:outline-none focus:ring-1 focus:ring-[var(--accent-oxblood)] max-w-[320px]"
             >
-              {!sampleCases.some((c) => c.caseNo === selectedCase) && (
-                <option value={selectedCase}>{selectedCase}</option>
+              {availableCases.length === 0 && (
+                <option value={selectedCase}>{selectedCase || 'Loading cases...'}</option>
               )}
-              {sampleCases.map((c) => (
+              {availableCases.map((c) => (
                 <option key={c.caseNo} value={c.caseNo}>
                   {c.label}
                 </option>

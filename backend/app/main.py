@@ -1003,6 +1003,27 @@ def get_direction_timeline(direction_id: int, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/cases", tags=["Timeline"])
+def list_available_timeline_cases(db: Session = Depends(get_db)):
+    """List available cases that exist in the database for the timeline dropdown."""
+    # Find cases that have directions or are referenced in case links
+    judgments = (
+        db.query(Judgment.case_number, Judgment.cnr, Judgment.title, Judgment.petitioner, Judgment.respondent)
+        .filter(Judgment.case_number.isnot(None), Judgment.status == "INGESTED")
+        .order_by(Judgment.id.desc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "case_number": j.case_number,
+            "cnr": j.cnr,
+            "title": j.title or f"{j.case_number}: {j.petitioner or ''} Vs {j.respondent or ''}".strip(),
+        }
+        for j in judgments
+    ]
+
+
 @app.get("/cases/{cnr:path}/timeline", response_model=CaseTimelineResponse, tags=["Timeline"])
 def get_case_timeline(cnr: str, db: Session = Depends(get_db)):
     """Retrieve unified case timeline by CNR or Case Number."""
