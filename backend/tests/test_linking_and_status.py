@@ -299,3 +299,59 @@ def test_ongoing_process_verdict_and_evidence_refinements():
     assert determine_evidence_strength(party_quote) == "PARTY_SUBMISSION"
     assert determine_evidence_strength(advocate_quote) == "PARTY_SUBMISSION"
 
+
+def test_api_status_refactor_endpoints():
+    """Verify GET /directions/{id}, /ledger, /stats, and /export.csv per Phase A status refactor."""
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+
+    client = TestClient(app)
+
+    # 1. GET /directions/{id} returns status, sub_reason, flags, and evidence list
+    r_dir = client.get("/directions/24")
+    assert r_dir.status_code == 200
+    d_data = r_dir.json()
+    assert d_data["status"] in ("COMPLIED", "PENDING", "UNVERIFIED")
+    assert d_data["sub_reason"] is not None
+    assert "flags" in d_data
+    assert "contempt_filed" in d_data["flags"]
+    assert "overdue_no_record" in d_data["flags"]
+    assert isinstance(d_data["evidence"], list)
+
+    # 2. GET /ledger uses three statuses and returns paginated records
+    r_ledger = client.get("/ledger?limit=10")
+    assert r_ledger.status_code == 200
+    ledger_data = r_ledger.json()
+    assert "total" in ledger_data
+    assert "items" in ledger_data
+    for item in ledger_data["items"]:
+        assert item["compliance_status"] in ("COMPLIED", "PENDING", "UNVERIFIED")
+        assert item["status"] in ("COMPLIED", "PENDING", "UNVERIFIED")
+        assert "flags" in item
+        assert "overdue_no_record" in item["flags"]
+
+    # Filter by status
+    r_complied = client.get("/ledger?status=COMPLIED")
+    assert r_complied.status_code == 200
+    for item in r_complied.json()["items"]:
+        assert item["compliance_status"] == "COMPLIED"
+
+    # 3. GET /stats uses the three headline statuses
+    r_stats = client.get("/stats")
+    assert r_stats.status_code == 200
+    stats_data = r_stats.json()
+    assert set(stats_data["status_distribution"].keys()) == {"COMPLIED", "PENDING", "UNVERIFIED"}
+    assert "flags_distribution" in stats_data
+    assert "evidence_strength_distribution" in stats_data
+    assert "top_departments" in stats_data
+
+    # 4. GET /export.csv returns CSV with the three headline statuses
+    r_csv = client.get("/export.csv")
+    assert r_csv.status_code == 200
+    assert "text/csv" in r_csv.headers["content-type"]
+    lines = r_csv.text.strip().split("\n")
+    assert len(lines) > 1
+    assert "direction_id,case_number,court" in lines[0]
+    assert "compliance_status" in lines[0]
+    assert "sub_reason" in lines[0]
+

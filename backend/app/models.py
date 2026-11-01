@@ -135,6 +135,7 @@ class Direction(Base):
     explanation_text = Column(Text, nullable=True)
     deadline_status = Column(String(32), default="NO_DEADLINE", index=True)  # UPCOMING, IN_WINDOW, LAPSED, NO_DEADLINE, URGENT_UNSPECIFIED, DEPENDENT
     compliance_status = Column(String(32), default="UNVERIFIED", index=True)  # COMPLIED, PENDING, UNVERIFIED
+    sub_reason = Column(Text, nullable=True)  # Detailed reason/sub-category explaining the compliance_status
     has_contempt_flag = Column(Boolean, default=False)
     contempt_filed = Column(Boolean, default=False)
     extension_sought = Column(Boolean, default=False)
@@ -240,3 +241,27 @@ class LLMCache(Base):
     model_name = Column(String(64), nullable=False)
     response_json = Column(Text, nullable=False)
     created_at = Column(DateTime, default=utcnow)
+
+
+class AgentRun(Base):
+    """Execution log for autonomous follow-up analysis agent runs.
+    
+    Tracks the full lifecycle of autonomous linking, LLM classification, verbatim verification,
+    and status resolution whenever a new judgment is ingested or a rescan is triggered.
+    """
+
+    __tablename__ = "agent_runs"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    trigger = Column(String(64), nullable=False, default="INGEST_ANALYSIS")  # INGEST_ANALYSIS, RESCAN, MANUAL
+    source_judgment_id = Column(Integer, ForeignKey("judgments.id"), nullable=True, index=True)
+    source_case_number = Column(String(256), nullable=True)
+    steps = Column(Text, nullable=False)  # JSON-encoded array of step metrics and logs
+    directions_checked_count = Column(Integer, default=0)
+    directions_updated_count = Column(Integer, default=0)
+    outcome = Column(String(64), default="SUCCESS")  # SUCCESS, NO_CANDIDATES, PARTIAL_SUCCESS, FAILED
+    errors = Column(Text, nullable=True)
+    duration_seconds = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=utcnow)
+
+    source_judgment = relationship("Judgment", foreign_keys=[source_judgment_id])

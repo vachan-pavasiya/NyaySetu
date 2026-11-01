@@ -82,6 +82,7 @@ class ComplianceExtractionAgent:
                 "has_directions": False,
                 "total_directions": 0,
                 "directions": [],
+                "metrics": {},
                 "step_logs": self.step_logs,
                 "total_latency_seconds": round(time.perf_counter() - total_start, 3),
             }

@@ -304,6 +304,7 @@ def update_all_direction_statuses(db: Session) -> Dict[str, Any]:
 
         old_status = d.compliance_status
         status_changed = (old_status != new_status)
+        sub_reason_changed = (d.sub_reason != reason)
         flags_changed = (
             d.overdue_no_record != flags["overdue_no_record"]
             or d.contempt_filed != flags["contempt_filed"]
@@ -311,8 +312,9 @@ def update_all_direction_statuses(db: Session) -> Dict[str, Any]:
             or d.contempt_dismissed_for_default != flags["contempt_dismissed_for_default"]
         )
 
-        if status_changed or flags_changed or not d.status_history:
+        if status_changed or flags_changed or sub_reason_changed or not d.status_history:
             d.compliance_status = new_status
+            d.sub_reason = reason
             d.overdue_no_record = flags["overdue_no_record"]
             d.contempt_filed = flags["contempt_filed"]
             d.has_contempt_flag = flags["contempt_filed"]

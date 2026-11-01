@@ -5,16 +5,22 @@ Role: Configures HTTP server, CORS middleware, lifespan events, health check,
 Data flow: Inbound HTTP -> Router -> Database/Pipelines -> JSON response.
 """
 
+import csv
+import io
+import json
+import math
+import time
 import uuid
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, List, Optional, Union, Any
+from typing import AsyncGenerator, List, Optional, Union, Any, Dict, Tuple, Set
 
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query, Response, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy import text, desc
+from sqlalchemy import text, desc, func
 from sqlalchemy.orm import Session
 
 from backend.app.config import get_settings, Settings
@@ -28,9 +34,12 @@ from backend.app.models import (
     CaseLink,
     DirectionStatusHistory,
     Evidence,
+    AgentRun,
 )
 from backend.pipeline.ingest import run_ingestion
 from backend.pipeline.agent import ComplianceExtractionAgent, analyze_judgment
+from backend.pipeline.clean_department import clean_department_name
+from backend.pipeline.linking import normalize_case_citation
 
 logger = logging.getLogger("compliance_radar.api")
 settings = get_settings()
@@ -58,6 +67,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ----------------------------------------------------------------------------
+# In-memory Aggregate Caching (Short TTL) & Global Error Handler
+# ----------------------------------------------------------------------------
+_AGG_CACHE: Dict[str, Tuple[float, Any]] = {}
+CACHE_TTL_SECONDS = 20.0
+
+
+def get_from_cache(key: str) -> Optional[Any]:
+    """Retrieve value from in-memory cache if not expired."""
+    if key in _AGG_CACHE:
+        timestamp, value = _AGG_CACHE[key]
+        if time.time() - timestamp < CACHE_TTL_SECONDS:
+            return value
+        del _AGG_CACHE[key]
+    return None
+
+
+def store_in_cache(key: str, value: Any) -> None:
+    """Store value in cache with current timestamp."""
+    _AGG_CACHE[key] = (time.time(), value)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global JSON error handler for unhandled exceptions."""
+    logger.error(f"Global unhandled exception on {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal Server Error",
+            "detail": str(exc),
+            "path": request.url.path,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
 
 # ============================================================================
@@ -163,6 +208,8 @@ class DirectionDetailResponse(BaseModel):
     deadline_window_end: Optional[str] = None
     deadline_status: str
     compliance_status: str
+    status: str
+    sub_reason: Optional[str] = None
     flags: dict
     explanation_text: Optional[str] = None
     evidence_strength: Optional[str] = None  # COURT_RECORDED vs PARTY_SUBMISSION
@@ -170,6 +217,166 @@ class DirectionDetailResponse(BaseModel):
     directions_covered_count: Optional[int] = None
     evidence: List[EvidenceItem]
     created_at: str
+
+
+class LedgerItem(BaseModel):
+    id: int
+    direction_id: int
+    judgment_id: int
+    case_number: Optional[str] = None
+    court: Optional[str] = None
+    judgment_date: Optional[str] = None
+    responsible_party: str
+    cleaned_department: str
+    party_type: str
+    direction_type: str
+    action: str
+    deadline_phrase: Optional[str] = None
+    deadline_window_start: Optional[str] = None
+    deadline_window_end: Optional[str] = None
+    deadline_status: str
+    explanation_text: Optional[str] = None
+    compliance_status: str  # COMPLIED, PENDING, UNVERIFIED
+    status: str             # alias for compliance_status
+    sub_reason: Optional[str] = None
+    flags: dict
+    evidence_strength: Optional[str] = None
+    evidence_scope: Optional[str] = None
+    directions_covered_count: Optional[int] = None
+    primary_quote: Optional[str] = None
+    primary_verdict: Optional[str] = None
+    primary_case: Optional[str] = None
+    evidence_count: int = 0
+    judgment_link: str
+
+
+class LedgerResponse(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    limit: int
+    offset: int
+    items: List[LedgerItem]
+
+
+class CalendarDirectionItem(BaseModel):
+    id: int
+    direction_id: int
+    judgment_id: int
+    case_number: Optional[str] = None
+    court: Optional[str] = None
+    judgment_date: Optional[str] = None
+    responsible_party: str
+    cleaned_department: str
+    action: str
+    deadline_phrase: Optional[str] = None
+    deadline_window_start: Optional[str] = None
+    deadline_window_end: str
+    deadline_status: str
+    compliance_status: str
+    sub_reason: Optional[str] = None
+    flags: dict
+    explanation_text: Optional[str] = None
+    evidence_strength: Optional[str] = None
+    evidence_scope: Optional[str] = None
+    judgment_link: str
+
+
+class CalendarResponse(BaseModel):
+    month: str
+    total_directions: int
+    status_summary: Dict[str, int]
+    directions: List[CalendarDirectionItem]
+
+
+class DashboardFreshness(BaseModel):
+    latest_judgment_date: Optional[str] = None
+    total_judgments: int
+    analysed_count: int
+
+
+class DashboardLinkStats(BaseModel):
+    total_links: int
+    by_type: Dict[str, int]
+    by_signal: Dict[str, int]
+    by_confidence: Dict[str, int]
+
+
+class DueDirectionItem(BaseModel):
+    id: int
+    direction_id: int
+    case_number: Optional[str] = None
+    judgment_id: int
+    responsible_party: str
+    cleaned_department: str
+    action: str
+    deadline_window_end: Optional[str] = None
+    deadline_status: str
+    compliance_status: str
+    days_remaining: Optional[int] = None
+    sub_reason: Optional[str] = None
+    judgment_link: str
+
+
+class DashboardDepartmentSummary(BaseModel):
+    department: str
+    total: int
+    open_count: int
+    complied: int
+    pending: int
+    unverified: int
+    overdue: int
+
+
+class AgentRunItem(BaseModel):
+    id: int
+    trigger: str
+    source_judgment_id: Optional[int] = None
+    source_case_number: Optional[str] = None
+    steps: List[Dict[str, Any]]
+    directions_checked_count: int
+    directions_updated_count: int
+    outcome: str
+    errors: Optional[str] = None
+    duration_seconds: float
+    created_at: str
+    message: str
+
+
+class DashboardResponse(BaseModel):
+    status_counts: Dict[str, int]
+    overdue_no_record_count: int
+    contempt_filed_count: int
+    evidence_strength_split: Dict[str, int]
+    deadline_bucket_counts: Dict[str, int]
+    top_departments: List[DashboardDepartmentSummary]
+    directions_due_next_30_days: List[DueDirectionItem]
+    due_next_30_days_count: int
+    dataset_freshness: DashboardFreshness
+    link_stats: DashboardLinkStats
+    recent_pipeline_runs: List[AgentRunItem]
+    disclaimer: str = "Legal information, not legal advice."
+    unverified_note: str = "UNVERIFIED means no public evidence found, not non-compliance."
+
+
+class DepartmentSummary(BaseModel):
+    department: str
+    total: int
+    complied: int
+    pending: int
+    unverified: int
+    overdue: int
+
+
+class OverallStatsResponse(BaseModel):
+    total_judgments: int
+    total_directions: int
+    status_distribution: dict
+    flags_distribution: dict
+    evidence_strength_distribution: dict
+    case_level_directions_count: int
+    top_departments: List[DepartmentSummary]
 
 
 class DirectionTimelineEvent(BaseModel):
@@ -217,8 +424,25 @@ class AnalyzeJudgmentResponse(BaseModel):
     has_directions: bool
     total_directions: int
     directions: List[dict]
-    metrics: dict
+    metrics: Optional[dict] = Field(default_factory=dict)
     step_logs: List[dict]
+    followup_run_id: Optional[int] = None
+    followup_updated_directions: Optional[int] = None
+
+
+class AgentRunsResponse(BaseModel):
+    total: int
+    runs: List[AgentRunItem]
+
+
+class RescanResponse(BaseModel):
+    run_id: int
+    trigger: str
+    outcome: str
+    directions_checked: int
+    directions_updated: int
+    duration_seconds: float
+    message: str
 
 
 class BatchAnalyzeRequest(BaseModel):
@@ -458,9 +682,23 @@ def get_judgment_detail(judgment_id: int, db: Session = Depends(get_db)):
 
 @app.post("/judgments/{judgment_id}/analyze", response_model=AnalyzeJudgmentResponse, tags=["Analysis"])
 def analyze_single_judgment(judgment_id: int, db: Session = Depends(get_db)):
-    """Run agentic segmentation, direction extraction, and verbatim verification on a judgment."""
+    """Run agentic segmentation, direction extraction, and verbatim verification on a judgment,
+    then automatically trigger autonomous follow-up analysis to link and update directions."""
     try:
         result = analyze_judgment(judgment_id, db=db)
+
+        # Autonomous follow-up analysis: automatically link, classify, verify, and update status
+        try:
+            from backend.pipeline.followup_agent import FollowUpAnalysisAgent
+            judgment = db.query(Judgment).filter(Judgment.id == judgment_id).first()
+            if judgment:
+                followup_agent = FollowUpAnalysisAgent(source_judgment=judgment, trigger="INGEST_ANALYSIS")
+                agent_run = followup_agent.run(db=db)
+                result["followup_run_id"] = agent_run.id
+                result["followup_updated_directions"] = agent_run.directions_updated_count
+        except Exception as f_err:
+            logger.error(f"Follow-up agent auto-run failed for judgment {judgment_id}: {f_err}")
+
         return result
     except ValueError as val_err:
         raise HTTPException(status_code=404, detail=str(val_err))
@@ -612,6 +850,8 @@ def get_direction_detail(direction_id: int, db: Session = Depends(get_db)):
         deadline_window_end=d.deadline_window_end.isoformat() if d.deadline_window_end else None,
         deadline_status=d.deadline_status or "NO_DEADLINE",
         compliance_status=d.compliance_status or "UNVERIFIED",
+        status=d.compliance_status or "UNVERIFIED",
+        sub_reason=d.sub_reason,
         flags={
             "contempt_filed": bool(d.contempt_filed or d.has_contempt_flag),
             "extension_sought": bool(d.extension_sought),
@@ -915,6 +1155,696 @@ def get_link_stats(db: Session = Depends(get_db)):
         "flags_summary": flags_summary,
         "total_directions": len(dirs),
     }
+
+
+# ============================================================================
+# Dashboard & Aggregations Endpoints
+# ============================================================================
+
+@app.get("/dashboard", response_model=DashboardResponse, tags=["Dashboard"])
+def get_dashboard_summary(db: Session = Depends(get_db)):
+    """Retrieve comprehensive compliance radar dashboard telemetry with short TTL caching."""
+    cache_key = "dashboard_summary"
+    cached = get_from_cache(cache_key)
+    if cached:
+        return cached
+
+    # 1. Directions and status counts
+    directions = db.query(Direction).join(Judgment, Direction.judgment_id == Judgment.id).all()
+    total_judgments = db.query(Judgment).count()
+    analysed_count = db.query(Judgment).filter(Judgment.status == "INGESTED").count()
+    max_j_date = db.query(func.max(Judgment.judgment_date)).scalar()
+
+    status_counts = {"COMPLIED": 0, "PENDING": 0, "UNVERIFIED": 0}
+    bucket_counts: Dict[str, int] = {}
+    overdue_count = 0
+    contempt_count = 0
+    dept_map: Dict[str, Dict[str, int]] = {}
+
+    today = date.today()
+    due_items = []
+
+    for d in directions:
+        st = d.compliance_status or "UNVERIFIED"
+        status_counts[st] = status_counts.get(st, 0) + 1
+
+        b = d.deadline_status or "NO_DEADLINE"
+        bucket_counts[b] = bucket_counts.get(b, 0) + 1
+
+        if d.overdue_no_record:
+            overdue_count += 1
+        if d.contempt_filed or d.has_contempt_flag:
+            contempt_count += 1
+
+        # Cleaned department aggregation
+        c_dept = clean_department_name(d.responsible_party)
+        if c_dept not in dept_map:
+            dept_map[c_dept] = {"total": 0, "complied": 0, "pending": 0, "unverified": 0, "overdue": 0}
+        dept_map[c_dept]["total"] += 1
+        if st == "COMPLIED":
+            dept_map[c_dept]["complied"] += 1
+        elif st == "PENDING":
+            dept_map[c_dept]["pending"] += 1
+        else:
+            dept_map[c_dept]["unverified"] += 1
+        if d.overdue_no_record:
+            dept_map[c_dept]["overdue"] += 1
+
+        # Check due next 30 days or active upcoming/in-window deadlines
+        if d.deadline_window_end:
+            days_rem = (d.deadline_window_end - today).days
+            if (0 <= days_rem <= 30) or d.deadline_status in ("UPCOMING", "IN_WINDOW"):
+                j = d.judgment
+                due_items.append(
+                    DueDirectionItem(
+                        id=d.id,
+                        direction_id=d.id,
+                        case_number=j.case_number if j else None,
+                        judgment_id=d.judgment_id,
+                        responsible_party=d.responsible_party,
+                        cleaned_department=c_dept,
+                        action=d.action,
+                        deadline_window_end=d.deadline_window_end.isoformat(),
+                        deadline_status=d.deadline_status or "NO_DEADLINE",
+                        compliance_status=st,
+                        days_remaining=days_rem,
+                        sub_reason=d.sub_reason,
+                        judgment_link=f"/judgments/{d.judgment_id}",
+                    )
+                )
+
+    # Top 10 departments by open directions (pending + unverified)
+    top_depts = []
+    for dept_name, m in dept_map.items():
+        open_cnt = m["pending"] + m["unverified"]
+        top_depts.append(
+            DashboardDepartmentSummary(
+                department=dept_name,
+                total=m["total"],
+                open_count=open_cnt,
+                complied=m["complied"],
+                pending=m["pending"],
+                unverified=m["unverified"],
+                overdue=m["overdue"],
+            )
+        )
+    top_depts.sort(key=lambda x: (x.open_count, x.total), reverse=True)
+    top_10_depts = top_depts[:10]
+
+    # 2. Evidence strength split
+    evidences = db.query(Evidence).all()
+    strength_split = {"COURT_RECORDED": 0, "PARTY_SUBMISSION": 0}
+    for ev in evidences:
+        if ev.evidence_strength == "COURT_RECORDED":
+            strength_split["COURT_RECORDED"] += 1
+        elif ev.evidence_strength == "PARTY_SUBMISSION":
+            strength_split["PARTY_SUBMISSION"] += 1
+
+    # 3. Link stats
+    links = db.query(CaseLink).all()
+    by_type: Dict[str, int] = {}
+    by_signal: Dict[str, int] = {}
+    by_conf: Dict[str, int] = {}
+    for lk in links:
+        by_type[lk.link_type] = by_type.get(lk.link_type, 0) + 1
+        sig = lk.link_signal or "unknown"
+        by_signal[sig] = by_signal.get(sig, 0) + 1
+        conf = lk.link_confidence or "MEDIUM"
+        by_conf[conf] = by_conf.get(conf, 0) + 1
+
+    link_stats = DashboardLinkStats(
+        total_links=len(links),
+        by_type=by_type,
+        by_signal=by_signal,
+        by_confidence=by_conf,
+    )
+
+    # 4. Recent pipeline runs (last 10)
+    recent_runs_db = db.query(AgentRun).order_by(desc(AgentRun.id)).limit(10).all()
+    recent_runs = []
+    for r in recent_runs_db:
+        try:
+            steps_list = json.loads(r.steps) if r.steps else []
+        except Exception:
+            steps_list = []
+        case_info = (
+            r.source_case_number
+            or (f"Judgment #{r.source_judgment_id}" if r.source_judgment_id else "Database")
+        )
+        if r.trigger == "RESCAN":
+            msg = f"Database rescan checked {r.directions_checked_count} directions, updated {r.directions_updated_count}"
+        elif r.outcome == "NO_CANDIDATES":
+            msg = f"Order {case_info} analysed: no linked earlier directions found"
+        elif r.directions_updated_count > 0:
+            msg = f"New order {case_info} updated {r.directions_updated_count} directions (checked {r.directions_checked_count})"
+        else:
+            msg = f"Order {case_info} checked {r.directions_checked_count} directions (status verified)"
+
+        recent_runs.append(
+            AgentRunItem(
+                id=r.id,
+                trigger=r.trigger,
+                source_judgment_id=r.source_judgment_id,
+                source_case_number=r.source_case_number,
+                steps=steps_list,
+                directions_checked_count=r.directions_checked_count,
+                directions_updated_count=r.directions_updated_count,
+                outcome=r.outcome,
+                errors=r.errors,
+                duration_seconds=r.duration_seconds,
+                created_at=r.created_at.isoformat() if r.created_at else "",
+                message=msg,
+            )
+        )
+
+    due_items.sort(key=lambda x: x.deadline_window_end or "9999-99-99")
+
+    resp = DashboardResponse(
+        status_counts=status_counts,
+        overdue_no_record_count=overdue_count,
+        contempt_filed_count=contempt_count,
+        evidence_strength_split=strength_split,
+        deadline_bucket_counts=bucket_counts,
+        top_departments=top_10_depts,
+        directions_due_next_30_days=due_items[:10],
+        due_next_30_days_count=len(due_items),
+        dataset_freshness=DashboardFreshness(
+            latest_judgment_date=max_j_date.isoformat() if max_j_date else None,
+            total_judgments=total_judgments,
+            analysed_count=analysed_count,
+        ),
+        link_stats=link_stats,
+        recent_pipeline_runs=recent_runs,
+    )
+    store_in_cache(cache_key, resp)
+    return resp
+
+
+@app.get("/calendar", response_model=CalendarResponse, tags=["Calendar"])
+def get_compliance_calendar(
+    month: Optional[str] = Query(None, description="Calendar month in YYYY-MM format"),
+    db: Session = Depends(get_db),
+):
+    """Retrieve operative directions whose deadline window ends in the specified month."""
+    if not month:
+        latest_d = (
+            db.query(Direction)
+            .filter(Direction.deadline_window_end.isnot(None))
+            .order_by(Direction.deadline_window_end.desc())
+            .first()
+        )
+        if latest_d and latest_d.deadline_window_end:
+            month = latest_d.deadline_window_end.strftime("%Y-%m")
+        else:
+            month = datetime.now(timezone.utc).strftime("%Y-%m")
+
+    q = (
+        db.query(Direction)
+        .join(Judgment, Direction.judgment_id == Judgment.id)
+        .filter(Direction.deadline_window_end.isnot(None))
+        .filter(func.strftime("%Y-%m", Direction.deadline_window_end) == month)
+        .order_by(Direction.deadline_window_end.asc())
+    )
+    records = q.all()
+
+    status_summary = {"COMPLIED": 0, "PENDING": 0, "UNVERIFIED": 0}
+    items = []
+    for d in records:
+        st = d.compliance_status or "UNVERIFIED"
+        status_summary[st] = status_summary.get(st, 0) + 1
+        j = d.judgment
+        pev = d.evidence_list[0] if d.evidence_list else None
+        cleaned_dept = clean_department_name(d.responsible_party)
+
+        items.append(
+            CalendarDirectionItem(
+                id=d.id,
+                direction_id=d.id,
+                judgment_id=d.judgment_id,
+                case_number=j.case_number if j else None,
+                court=j.court if j else None,
+                judgment_date=j.judgment_date.isoformat() if j and j.judgment_date else None,
+                responsible_party=d.responsible_party,
+                cleaned_department=cleaned_dept,
+                action=d.action,
+                deadline_phrase=d.deadline_phrase,
+                deadline_window_start=d.deadline_window_start.isoformat() if d.deadline_window_start else None,
+                deadline_window_end=d.deadline_window_end.isoformat(),
+                deadline_status=d.deadline_status or "NO_DEADLINE",
+                compliance_status=st,
+                sub_reason=d.sub_reason,
+                flags={
+                    "contempt_filed": bool(d.contempt_filed or d.has_contempt_flag),
+                    "extension_sought": bool(d.extension_sought),
+                    "overdue_no_record": bool(d.overdue_no_record),
+                    "contempt_dismissed_for_default": bool(d.contempt_dismissed_for_default),
+                },
+                explanation_text=d.explanation_text,
+                evidence_strength=pev.evidence_strength if pev else None,
+                evidence_scope=pev.evidence_scope if pev else None,
+                judgment_link=f"/judgments/{d.judgment_id}",
+            )
+        )
+
+    return CalendarResponse(
+        month=month,
+        total_directions=len(items),
+        status_summary=status_summary,
+        directions=items,
+    )
+
+
+@app.get("/ledger", response_model=LedgerResponse, tags=["Ledger"])
+def get_compliance_ledger(
+    department: Optional[str] = Query(None, description="Filter by responsible department/party"),
+    court: Optional[str] = Query(None, description="Filter by court code or name"),
+    status: Optional[str] = Query(None, description="Filter by headline status: COMPLIED, PENDING, UNVERIFIED"),
+    bucket: Optional[str] = Query(None, description="Filter by deadline bucket: UPCOMING, IN_WINDOW, LAPSED, etc."),
+    from_date: Optional[str] = Query(None, alias="from", description="Filter from date (YYYY-MM-DD)"),
+    to_date: Optional[str] = Query(None, alias="to", description="Filter to date (YYYY-MM-DD)"),
+    year: Optional[int] = Query(None, description="Filter by year"),
+    search: Optional[str] = Query(None, description="Text search in action, party, or case number"),
+    overdue_only: bool = Query(False, description="Filter to overdue directions only"),
+    contempt_only: bool = Query(False, description="Filter to directions with contempt petitions"),
+    page: int = Query(1, ge=1, description="1-indexed page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    limit: Optional[int] = Query(None, ge=1, le=500, description="Override limit (compatibility)"),
+    offset: Optional[int] = Query(None, ge=0, description="Override offset (compatibility)"),
+    db: Session = Depends(get_db),
+):
+    """Retrieve operative directions compliance ledger with deterministic department cleaning and pagination."""
+    q = db.query(Direction).join(Judgment, Direction.judgment_id == Judgment.id)
+
+    if status:
+        st_upper = status.strip().upper()
+        q = q.filter(Direction.compliance_status == st_upper)
+
+    if court:
+        q = q.filter(Judgment.court.ilike(f"%{court.strip()}%"))
+
+    if year:
+        q = q.filter(Judgment.year == year)
+
+    if bucket:
+        b_upper = bucket.strip().upper()
+        q = q.filter(Direction.deadline_status == b_upper)
+
+    if from_date:
+        try:
+            f_d = date.fromisoformat(from_date.strip())
+            q = q.filter((Direction.deadline_window_end >= f_d) | (Direction.deadline_window_start >= f_d))
+        except Exception:
+            pass
+
+    if to_date:
+        try:
+            t_d = date.fromisoformat(to_date.strip())
+            q = q.filter(Direction.deadline_window_end <= t_d)
+        except Exception:
+            pass
+
+    if overdue_only:
+        q = q.filter(Direction.overdue_no_record == True)
+
+    if contempt_only:
+        q = q.filter((Direction.contempt_filed == True) | (Direction.has_contempt_flag == True))
+
+    if search:
+        s_term = f"%{search.strip()}%"
+        q = q.filter(
+            (Direction.action.ilike(s_term))
+            | (Direction.responsible_party.ilike(s_term))
+            | (Judgment.case_number.ilike(s_term))
+        )
+
+    # Department filter: match either raw party or cleaned department
+    all_matched_records = q.order_by(desc(Direction.id)).all()
+    if department:
+        d_lower = department.strip().lower()
+        matched_records = [
+            d for d in all_matched_records
+            if d_lower in (d.responsible_party or "").lower() or d_lower in clean_department_name(d.responsible_party).lower()
+        ]
+    else:
+        matched_records = all_matched_records
+
+    total = len(matched_records)
+
+    eff_limit = limit if limit is not None else page_size
+    eff_offset = offset if offset is not None else (page - 1) * page_size
+    eff_page = page if limit is None else (eff_offset // eff_limit) + 1
+    total_pages = max(1, math.ceil(total / eff_limit))
+
+    paged_records = matched_records[eff_offset : eff_offset + eff_limit]
+
+    items = []
+    for d in paged_records:
+        j = d.judgment
+        primary_ev = d.evidence_list[0] if d.evidence_list else None
+        cleaned_dept = clean_department_name(d.responsible_party)
+        items.append(
+            LedgerItem(
+                id=d.id,
+                direction_id=d.id,
+                judgment_id=d.judgment_id,
+                case_number=j.case_number if j else None,
+                court=j.court if j else None,
+                judgment_date=j.judgment_date.isoformat() if j and j.judgment_date else None,
+                responsible_party=d.responsible_party,
+                cleaned_department=cleaned_dept,
+                party_type=d.party_type,
+                direction_type=d.direction_type or "mandatory",
+                action=d.action,
+                deadline_phrase=d.deadline_phrase,
+                deadline_window_start=d.deadline_window_start.isoformat() if d.deadline_window_start else None,
+                deadline_window_end=d.deadline_window_end.isoformat() if d.deadline_window_end else None,
+                deadline_status=d.deadline_status or "NO_DEADLINE",
+                explanation_text=d.explanation_text,
+                compliance_status=d.compliance_status or "UNVERIFIED",
+                status=d.compliance_status or "UNVERIFIED",
+                sub_reason=d.sub_reason,
+                flags={
+                    "contempt_filed": bool(d.contempt_filed or d.has_contempt_flag),
+                    "extension_sought": bool(d.extension_sought),
+                    "overdue_no_record": bool(d.overdue_no_record),
+                    "contempt_dismissed_for_default": bool(d.contempt_dismissed_for_default),
+                },
+                evidence_strength=primary_ev.evidence_strength if primary_ev else None,
+                evidence_scope=primary_ev.evidence_scope if primary_ev else None,
+                directions_covered_count=primary_ev.directions_covered_count if primary_ev else None,
+                primary_quote=primary_ev.supporting_quote if primary_ev else None,
+                primary_verdict=primary_ev.verdict if primary_ev else None,
+                primary_case=primary_ev.source_case_number if primary_ev else None,
+                evidence_count=len(d.evidence_list),
+                judgment_link=f"/judgments/{d.judgment_id}",
+            )
+        )
+
+    return LedgerResponse(
+        total=total,
+        page=eff_page,
+        page_size=eff_limit,
+        total_pages=total_pages,
+        limit=eff_limit,
+        offset=eff_offset,
+        items=items,
+    )
+
+
+@app.get("/stats", response_model=OverallStatsResponse, tags=["Stats"])
+def get_compliance_stats(db: Session = Depends(get_db)):
+    """Retrieve compliance radar summary statistics with short TTL caching."""
+    cache_key = "compliance_stats"
+    cached = get_from_cache(cache_key)
+    if cached:
+        return cached
+
+    total_judgments = db.query(Judgment).filter(Judgment.status == "INGESTED").count()
+    directions = db.query(Direction).all()
+
+    status_dist = {"COMPLIED": 0, "PENDING": 0, "UNVERIFIED": 0}
+    flags_dist = {
+        "overdue_no_record": 0,
+        "contempt_filed": 0,
+        "extension_sought": 0,
+        "contempt_dismissed_for_default": 0,
+    }
+    strength_dist = {"COURT_RECORDED": 0, "PARTY_SUBMISSION": 0}
+    case_level_count = 0
+    dept_map: dict = {}
+
+    for d in directions:
+        st = d.compliance_status or "UNVERIFIED"
+        status_dist[st] = status_dist.get(st, 0) + 1
+
+        if d.overdue_no_record:
+            flags_dist["overdue_no_record"] += 1
+        if d.contempt_filed or d.has_contempt_flag:
+            flags_dist["contempt_filed"] += 1
+        if d.extension_sought:
+            flags_dist["extension_sought"] += 1
+        if d.contempt_dismissed_for_default:
+            flags_dist["contempt_dismissed_for_default"] += 1
+
+        if d.evidence_list:
+            pev = d.evidence_list[0]
+            if pev.evidence_strength in strength_dist:
+                strength_dist[pev.evidence_strength] += 1
+            if pev.evidence_scope == "CASE_LEVEL":
+                case_level_count += 1
+
+        dept = clean_department_name(d.responsible_party)
+        dept_entry = dept_map.setdefault(dept, {"total": 0, "complied": 0, "pending": 0, "unverified": 0, "overdue": 0})
+        dept_entry["total"] += 1
+        if st == "COMPLIED":
+            dept_entry["complied"] += 1
+        elif st == "PENDING":
+            dept_entry["pending"] += 1
+        else:
+            dept_entry["unverified"] += 1
+        if d.overdue_no_record:
+            dept_entry["overdue"] += 1
+
+    top_depts = [
+        DepartmentSummary(
+            department=dept,
+            total=data["total"],
+            complied=data["complied"],
+            pending=data["pending"],
+            unverified=data["unverified"],
+            overdue=data["overdue"],
+        )
+        for dept, data in sorted(dept_map.items(), key=lambda x: x[1]["total"], reverse=True)[:15]
+    ]
+
+    res = OverallStatsResponse(
+        total_judgments=total_judgments,
+        total_directions=len(directions),
+        status_distribution=status_dist,
+        flags_distribution=flags_dist,
+        evidence_strength_distribution=strength_dist,
+        case_level_directions_count=case_level_count,
+        top_departments=top_depts,
+    )
+    store_in_cache(cache_key, res)
+    return res
+
+
+@app.get("/export.csv", tags=["Export"])
+def export_compliance_csv(
+    department: Optional[str] = Query(None, description="Filter by responsible department/party"),
+    court: Optional[str] = Query(None, description="Filter by court code or name"),
+    status: Optional[str] = Query(None, description="Filter by headline status: COMPLIED, PENDING, UNVERIFIED"),
+    bucket: Optional[str] = Query(None, description="Filter by deadline bucket"),
+    from_date: Optional[str] = Query(None, alias="from", description="Filter from date (YYYY-MM-DD)"),
+    to_date: Optional[str] = Query(None, alias="to", description="Filter to date (YYYY-MM-DD)"),
+    year: Optional[int] = Query(None, description="Filter by judgment year"),
+    search: Optional[str] = Query(None, description="Text search"),
+    overdue_only: bool = Query(False, description="Filter to overdue directions only"),
+    contempt_only: bool = Query(False, description="Filter to directions with contempt petitions"),
+    db: Session = Depends(get_db),
+):
+    """Export filtered operative directions compliance ledger as CSV."""
+    q = db.query(Direction).join(Judgment, Direction.judgment_id == Judgment.id)
+
+    if status:
+        st_upper = status.strip().upper()
+        q = q.filter(Direction.compliance_status == st_upper)
+
+    if court:
+        q = q.filter(Judgment.court.ilike(f"%{court.strip()}%"))
+
+    if year:
+        q = q.filter(Judgment.year == year)
+
+    if bucket:
+        b_upper = bucket.strip().upper()
+        q = q.filter(Direction.deadline_status == b_upper)
+
+    if from_date:
+        try:
+            f_d = date.fromisoformat(from_date.strip())
+            q = q.filter((Direction.deadline_window_end >= f_d) | (Direction.deadline_window_start >= f_d))
+        except Exception:
+            pass
+
+    if to_date:
+        try:
+            t_d = date.fromisoformat(to_date.strip())
+            q = q.filter(Direction.deadline_window_end <= t_d)
+        except Exception:
+            pass
+
+    if overdue_only:
+        q = q.filter(Direction.overdue_no_record == True)
+
+    if contempt_only:
+        q = q.filter((Direction.contempt_filed == True) | (Direction.has_contempt_flag == True))
+
+    if search:
+        s_term = f"%{search.strip()}%"
+        q = q.filter(
+            (Direction.action.ilike(s_term))
+            | (Direction.responsible_party.ilike(s_term))
+            | (Judgment.case_number.ilike(s_term))
+        )
+
+    all_matched = q.order_by(Direction.id.asc()).all()
+    if department:
+        d_lower = department.strip().lower()
+        directions = [
+            d for d in all_matched
+            if d_lower in (d.responsible_party or "").lower() or d_lower in clean_department_name(d.responsible_party).lower()
+        ]
+    else:
+        directions = all_matched
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "direction_id",
+        "case_number",
+        "court",
+        "judgment_date",
+        "responsible_party_raw",
+        "cleaned_department",
+        "party_type",
+        "direction_type",
+        "action",
+        "deadline_phrase",
+        "deadline_window_start",
+        "deadline_window_end",
+        "deadline_status",
+        "compliance_status",
+        "sub_reason",
+        "overdue_no_record",
+        "contempt_filed",
+        "extension_sought",
+        "contempt_dismissed_for_default",
+        "evidence_strength",
+        "evidence_scope",
+        "directions_covered_count",
+        "supporting_quote",
+        "linked_follow_up_case",
+    ])
+
+    for d in directions:
+        j = d.judgment
+        pev = d.evidence_list[0] if d.evidence_list else None
+        cleaned_dept = clean_department_name(d.responsible_party)
+        writer.writerow([
+            d.id,
+            j.case_number if j else "",
+            j.court if j else "",
+            j.judgment_date.isoformat() if j and j.judgment_date else "",
+            d.responsible_party,
+            cleaned_dept,
+            d.party_type,
+            d.direction_type or "mandatory",
+            d.action,
+            d.deadline_phrase or "",
+            d.deadline_window_start.isoformat() if d.deadline_window_start else "",
+            d.deadline_window_end.isoformat() if d.deadline_window_end else "",
+            d.deadline_status or "NO_DEADLINE",
+            d.compliance_status or "UNVERIFIED",
+            d.sub_reason or "",
+            bool(d.overdue_no_record),
+            bool(d.contempt_filed or d.has_contempt_flag),
+            bool(d.extension_sought),
+            bool(d.contempt_dismissed_for_default),
+            pev.evidence_strength if pev else "",
+            pev.evidence_scope if pev else "",
+            pev.directions_covered_count if pev else "",
+            pev.supporting_quote if pev else "",
+            pev.source_case_number if pev else "",
+        ])
+
+    csv_data = output.getvalue()
+    return Response(
+        content=csv_data,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="compliance_ledger.csv"'},
+    )
+
+
+# ============================================================================
+# Autonomous Agent Endpoints
+# ============================================================================
+
+@app.get("/agent/runs", response_model=AgentRunsResponse, tags=["Autonomous Agent"])
+def list_agent_runs(
+    limit: int = Query(default=30, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Retrieve recent autonomous follow-up analysis agent runs and activity feed."""
+    query = db.query(AgentRun).order_by(desc(AgentRun.id))
+    total = query.count()
+    records = query.offset(offset).limit(limit).all()
+
+    items = []
+    for r in records:
+        try:
+            steps_list = json.loads(r.steps) if r.steps else []
+        except Exception:
+            steps_list = []
+
+        case_info = (
+            r.source_case_number
+            or (f"Judgment #{r.source_judgment_id}" if r.source_judgment_id else "Database")
+        )
+        if r.trigger == "RESCAN":
+            msg = f"Database rescan checked {r.directions_checked_count} directions, updated {r.directions_updated_count}"
+        elif r.outcome == "NO_CANDIDATES":
+            msg = f"Order {case_info} analysed: no linked earlier directions found"
+        elif r.directions_updated_count > 0:
+            msg = f"New order {case_info} updated {r.directions_updated_count} directions (checked {r.directions_checked_count})"
+        else:
+            msg = f"Order {case_info} checked {r.directions_checked_count} directions (status verified)"
+
+        items.append(
+            AgentRunItem(
+                id=r.id,
+                trigger=r.trigger,
+                source_judgment_id=r.source_judgment_id,
+                source_case_number=r.source_case_number,
+                steps=steps_list,
+                directions_checked_count=r.directions_checked_count,
+                directions_updated_count=r.directions_updated_count,
+                outcome=r.outcome,
+                errors=r.errors,
+                duration_seconds=r.duration_seconds,
+                created_at=r.created_at.isoformat() if r.created_at else "",
+                message=msg,
+            )
+        )
+
+    return AgentRunsResponse(total=total, runs=items)
+
+
+@app.post("/agent/rescan", response_model=RescanResponse, tags=["Autonomous Agent"])
+def trigger_agent_rescan(db: Session = Depends(get_db)):
+    """Run full autonomous follow-up agent scan across all database judgments."""
+    try:
+        from backend.pipeline.followup_agent import FollowUpAnalysisAgent
+        agent = FollowUpAnalysisAgent(source_judgment=None, trigger="RESCAN")
+        run_rec = agent.run(db=db)
+        msg = (
+            f"Rescan completed ({run_rec.outcome}): checked {run_rec.directions_checked_count}, "
+            f"updated {run_rec.directions_updated_count} directions in {run_rec.duration_seconds:.2f}s."
+        )
+        return RescanResponse(
+            run_id=run_rec.id,
+            trigger=run_rec.trigger,
+            outcome=run_rec.outcome,
+            directions_checked=run_rec.directions_checked_count,
+            directions_updated=run_rec.directions_updated_count,
+            duration_seconds=run_rec.duration_seconds,
+            message=msg,
+        )
+    except Exception as exc:
+        logger.error(f"Agent rescan failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Agent rescan error: {str(exc)}")
 
 
 if __name__ == "__main__":
