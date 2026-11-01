@@ -1,6 +1,6 @@
-# Court-Order Compliance Radar
+# NyaySetu: Court-Order Compliance Radar
 
-An AI-powered compliance monitoring platform that ingests real Indian High Court judgments from official open data (AWS Open Data public S3 bucket `indian-high-court-judgments`), extracts operative directions against government departments with verifiable source quotes, computes deterministic compliance deadline windows, and links subsequent orders and contempt proceedings to track compliance status.
+An automated compliance monitoring platform that ingests real Indian High Court judgments from official open data (AWS Open Data public S3 bucket `indian-high-court-judgments`), extracts operative directions against government departments with verifiable source quotes, computes deterministic compliance deadline windows, and links subsequent orders and contempt proceedings to track compliance status.
 
 ```mermaid
 graph TD
@@ -16,7 +16,7 @@ graph TD
         ING[1. Ingestion Engine<br/>boto3 unsigned]
         EXT[2. Text Extraction & Scoring<br/>PyMuPDF]
         SEG[3. Operative Segmentation<br/>Regex & Heuristics]
-        LLM[4. Direction Extraction Agent<br/>Gemini 2.5 Flash]
+        LLM[4. Direction Extraction Engine<br/>Gemini 2.5 Flash]
         VER[5. Verifier & Guardrail<br/>Verbatim substring verification]
         DATE[6. Deadline Math Engine<br/>Deterministic dateutil windows]
         LINK[7. Case & Contempt Linker<br/>CNR, WP, CPAN cross-ref]
@@ -65,7 +65,7 @@ graph TD
 │   │   ├── database.py       # SQLite engine and session factory
 │   │   ├── models.py         # SQLAlchemy ORM models
 │   │   └── main.py           # FastAPI entry point & GET /health
-│   ├── pipeline/             # Ingestion, segmentation, LLM agent, linker
+│   ├── pipeline/             # Ingestion, segmentation, extraction, linker
 │   ├── tests/                # Pytest test suite
 │   │   └── test_health.py    # Health endpoint & DB test
 │   └── requirements.txt      # Python dependencies

@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(
     title="Court-Order Compliance Radar",
-    description="Agentic tracking and verification of High Court compliance directions.",
+    description="Automated tracking and verification of High Court compliance directions.",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -708,7 +708,7 @@ def get_judgment_detail(judgment_id: int, db: Session = Depends(get_db)):
 
 @app.post("/judgments/{judgment_id}/analyze", response_model=AnalyzeJudgmentResponse, tags=["Analysis"])
 def analyze_single_judgment(judgment_id: int, db: Session = Depends(get_db)):
-    """Run agentic segmentation, direction extraction, and verbatim verification on a judgment,
+    """Run segmentation, direction extraction, and verbatim verification on a judgment,
     then automatically trigger autonomous follow-up analysis to link and update directions."""
     try:
         result = analyze_judgment(judgment_id, db=db)
@@ -734,7 +734,7 @@ def analyze_single_judgment(judgment_id: int, db: Session = Depends(get_db)):
 
 @app.post("/analyze/batch", response_model=BatchAnalyzeResponse, tags=["Analysis"])
 def analyze_batch(req: BatchAnalyzeRequest, db: Session = Depends(get_db)):
-    """Run agentic extraction on a batch of ingested judgments."""
+    """Run direction extraction on a batch of ingested judgments."""
     if req.judgment_ids:
         records = db.query(Judgment).filter(Judgment.id.in_(req.judgment_ids)).all()
     else:
@@ -1819,16 +1819,16 @@ def export_compliance_csv(
 
 
 # ============================================================================
-# Autonomous Agent Endpoints
+# Follow-Up Pipeline & Audit Endpoints
 # ============================================================================
 
-@app.get("/agent/runs", response_model=AgentRunsResponse, tags=["Autonomous Agent"])
+@app.get("/agent/runs", response_model=AgentRunsResponse, tags=["Pipeline Execution"])
 def list_agent_runs(
     limit: int = Query(default=30, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """Retrieve recent autonomous follow-up analysis agent runs and activity feed."""
+    """Retrieve recent follow-up analysis pipeline runs and audit activity feed."""
     query = db.query(AgentRun).order_by(desc(AgentRun.id))
     total = query.count()
     records = query.offset(offset).limit(limit).all()
@@ -1873,9 +1873,9 @@ def list_agent_runs(
     return AgentRunsResponse(total=total, runs=items)
 
 
-@app.post("/agent/rescan", response_model=RescanResponse, tags=["Autonomous Agent"])
+@app.post("/agent/rescan", response_model=RescanResponse, tags=["Pipeline Execution"])
 def trigger_agent_rescan(db: Session = Depends(get_db)):
-    """Run full autonomous follow-up agent scan across all database judgments."""
+    """Run full follow-up order scan across all database judgments."""
     try:
         from backend.pipeline.followup_agent import FollowUpAnalysisAgent
         agent = FollowUpAnalysisAgent(source_judgment=None, trigger="RESCAN")

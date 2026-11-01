@@ -343,7 +343,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Autonomous Follow-Up Activity Feed */}
+      {/* Follow-Up Pipeline Activity Feed */}
       <AgentActivityFeed />
     </div>
   );

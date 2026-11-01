@@ -1,4 +1,4 @@
-"""Generate Gold Eval Case file for Phase 3 Deadline Resolution.
+"""Generate Gold Eval Case file for Deadline Resolution Evaluation.
 
 Role: Extracts 20+ real deadline phrases from ingested judgments in SQLite,
       creating eval/deadline_cases.json with blank expected fields for manual labelling.

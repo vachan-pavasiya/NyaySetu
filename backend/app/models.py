@@ -244,7 +244,7 @@ class LLMCache(Base):
 
 
 class AgentRun(Base):
-    """Execution log for autonomous follow-up analysis agent runs.
+    """Execution audit log for follow-up analysis pipeline runs.
     
     Tracks the full lifecycle of autonomous linking, LLM classification, verbatim verification,
     and status resolution whenever a new judgment is ingested or a rescan is triggered.

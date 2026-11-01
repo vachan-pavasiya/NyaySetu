@@ -1,7 +1,7 @@
 """Pydantic data schemas for direction extraction, verification, and segmentation.
 
 Role: Strongly-typed models for operative directions, party classifications,
-      and verification results throughout the agent loop.
+      and verification results throughout the extraction pipeline.
 Data flow: Operative text -> Gemini LLM JSON -> Pydantic Models -> Verifier -> SQLite.
 """
 

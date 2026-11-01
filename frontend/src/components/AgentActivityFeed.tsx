@@ -88,7 +88,7 @@ export const AgentActivityFeed: React.FC = () => {
               Follow-Up Activity Record
             </h3>
             <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--accent-oxblood)] border border-[var(--accent-oxblood)] rounded-[2px] px-1 py-0.2">
-              Autonomous
+              Automated Audit
             </span>
           </div>
           <p className="font-sans text-[11px] text-[var(--ink-secondary)] mt-0.5">

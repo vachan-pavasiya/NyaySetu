@@ -1,7 +1,7 @@
-"""Unit tests for Phase B autonomous follow-up analysis agent.
+"""Unit tests for follow-up case linking and compliance engine.
 
 Tests:
-1. FollowUpAnalysisAgent candidate discovery for header citations and case links.
+1. Candidate discovery for header citations and case links.
 2. Explicit state loop execution with latency and step logging.
 3. Verbatim quote verifier with feedback retry.
 4. Graceful handling of Gemini failures: direction status remains unchanged and error is logged.
@@ -36,7 +36,7 @@ def client():
     return TestClient(app)
 
 
-def test_agent_candidate_discovery():
+def test_candidate_discovery():
     """Verify candidate discovery matches follow-up orders to earlier directions."""
     with SessionLocal() as db:
         # Create test writ judgment with directions

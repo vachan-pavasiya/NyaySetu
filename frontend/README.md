@@ -1,32 +1,33 @@
-# React + TypeScript + Vite
+# NyaySetu Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The modern editorial and gazette-style web interface for **NyaySetu: Court-Order Compliance Radar**. Built with React, Vite, TypeScript, and Tailwind CSS.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Principal Register (Dashboard)**: Real-time compliance health, top departments with pending directives, upcoming deadline windows, and pipeline audit logs.
+- **Compliance Ledger**: Paginated, filterable table of operative judicial directions with full search by department, compliance status, and date range.
+- **Law Report & Judgment View**: Detailed judgment inspector with side-by-side operative text segmentation, verbatim quote verification offsets, and confidence indicators.
+- **Case Progression & Timeline**: Interactive timeline visualizing original writ petitions linked to subsequent contempt proceedings (`CPAN` in `WPA`) and compliance filings.
+- **Deadline Calendar**: Monthly calendar view of approaching compliance window closures and service lag buffers.
+- **Evaluation Benchmarks**: Live accuracy and fidelity metrics against hand-labelled ground truth.
 
-## React Compiler
+## Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Install dependencies
+npm install
 
-## Expanding the Oxlint configuration
+# Run Vite dev server
+npm run dev
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Build production bundle
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Environment Configuration
+
+Configure `VITE_API_URL` in `.env` or during deployment:
+
+```bash
+VITE_API_URL=https://nyaysetu-backend-dfr6.onrender.com
+```

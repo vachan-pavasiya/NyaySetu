@@ -51,7 +51,7 @@ def verify_s3_reachability(bucket_name: str, region: str) -> bool:
         print("[BOOTSTRAP FATAL ERROR] AWS S3 Open Data bucket is UNREACHABLE.")
         print(f"Bucket:  {bucket_name}")
         print(f"Details: {exc}")
-        print("\nHACKATHON HARD RULE: Zero dummy or mock data allowed.")
+        print("\nSYSTEM INTEGRITY RULE: Zero dummy or mock data allowed.")
         print("NyaySetu refuses to seed synthetic cases or fake dates.")
         print("Please check internet connectivity / outbound HTTPS access to AWS S3.")
         print("!" * 80 + "\n")
@@ -148,7 +148,7 @@ def run_bootstrap(exit_on_failure: bool = True) -> bool:
         )
 
         if unanalyzed:
-            print(f"\n[BOOTSTRAP 4/5] Running agentic extraction on {len(unanalyzed)} unanalyzed judgments...")
+            print(f"\n[BOOTSTRAP 4/5] Running direction extraction on {len(unanalyzed)} unanalyzed judgments...")
             for idx, j in enumerate(unanalyzed, 1):
                 try:
                     res = analyze_judgment(j.id, db=db)

@@ -1,4 +1,4 @@
-"""Unit tests for Phase 4 follow-up linking and status engine.
+"""Unit tests for follow-up case linking and compliance status engine.
 
 Tests:
 1. Citation format normalization on real contempt petition headers from the database.

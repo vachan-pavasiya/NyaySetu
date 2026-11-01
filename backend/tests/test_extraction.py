@@ -1,7 +1,7 @@
-"""Unit and integration tests for Phase 2: Segmentation, Direction Extraction, and Verbatim Verification.
+"""Unit and integration tests for Segmentation, Direction Extraction, and Verbatim Verification.
 
 Role: Validates heuristic segmentation, dismissal handling, Pydantic schemas,
-      whitespace-tolerant verbatim quote verification, agent state graph, and analysis API endpoints.
+      whitespace-tolerant verbatim quote verification, extraction pipeline state machine, and analysis API endpoints.
 """
 
 import pytest
@@ -159,8 +159,8 @@ def test_deadline_phrase_verbatim_verification_and_extension():
     assert res_adj.direction.quote_end == len(text)
 
 
-def test_agent_loop_execution_and_persistence():
-    """Verify end-to-end agentic state graph on a real judgment."""
+def test_pipeline_loop_execution_and_persistence():
+    """Verify end-to-end extraction pipeline state machine on a real judgment."""
     sample_text = (
         "IN THE HIGH COURT AT CALCUTTA\n"
         "Constitutional Writ Jurisdiction\n"

@@ -1,4 +1,4 @@
-"""Autonomous follow-up analysis agent module.
+"""Follow-up Case Linking and Compliance Analysis Engine.
 
 Role: Whenever a judgment is ingested and analysed (or on full database rescan), automatically discovers
       candidate links to directions, evaluates follow-up orders with Gemini, verifies quotes verbatim
@@ -51,7 +51,7 @@ settings = get_settings()
 
 
 class FollowUpAnalysisAgent:
-    """Autonomous agent state machine for follow-up order linking and status resolution."""
+    """State machine engine for follow-up order linking and status resolution."""
 
     def __init__(
         self,

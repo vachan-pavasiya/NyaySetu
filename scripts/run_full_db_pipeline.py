@@ -1,9 +1,9 @@
-"""Batch runner for Phase 2, Phase 3, and Phase 4 over all remaining unanalysed judgments.
+"""Batch runner for end-to-end analysis over all remaining unanalysed judgments.
 
 Role: Sequentially runs:
-      1. Phase 2 (segment, extract, verify with feedback retries)
-      2. Phase 3 (deterministic deadline resolution and dedup)
-      3. Phase 4 (follow-up order linking, Gemini evidence classification, status engine)
+      1. Direction extraction (segment, extract, verify with feedback retries)
+      2. Deadline resolution (deterministic date window resolution and dedup)
+      3. Follow-up linking (order linking, Gemini evidence classification, status engine)
       Uses the SQLite LLM cache throughout.
 """
 
@@ -39,7 +39,7 @@ def main():
 
     total_to_process = len(unanalysed_judgments)
     print("=" * 80)
-    print(f"RUNNING PHASES 2, 3, AND 4 OVER {total_to_process} UNANALYSED JUDGMENTS")
+    print(f"RUNNING DIRECTION EXTRACTION, DEADLINE RESOLUTION & LINKING OVER {total_to_process} UNANALYSED JUDGMENTS")
     print("=" * 80)
 
     # Track metrics
@@ -51,7 +51,7 @@ def main():
     # Reset call metrics for this run
     reset_call_metrics()
 
-    # Process each unanalysed judgment through Phase 2 & 3
+    # Process each unanalysed judgment through extraction & deadline resolution
     for idx, j in enumerate(unanalysed_judgments, start=1):
         t0 = time.perf_counter()
         print(f"[{idx}/{total_to_process}] Analyzing Judgment ID {j.id} ({j.case_number or 'No Case Num'} - {j.judgment_date})...", end=" ", flush=True)
@@ -79,15 +79,15 @@ def main():
             gemini_errors_encountered.append(err_str)
             print(f"FAILED in {dur:.2f}s -> Error: {exc}")
 
-    # Now run Phase 4 Linking and Status over the entire DB
+    # Now run follow-up linking and status over the entire DB
     print("\n" + "=" * 80)
-    print("RUNNING PHASE 4: FOLLOW-UP LINKING & DETERMINISTIC STATUS ENGINE OVER FULL DB")
+    print("RUNNING FOLLOW-UP LINKING & DETERMINISTIC STATUS ENGINE OVER FULL DB")
     print("=" * 80)
 
     t_p4 = time.perf_counter()
     phase4_results = run_full_linking_and_status_pipeline(db)
     dur_p4 = time.perf_counter() - t_p4
-    print(f"Phase 4 pipeline completed in {dur_p4:.2f}s.")
+    print(f"Follow-up linking pipeline completed in {dur_p4:.2f}s.")
 
     # ------------------------------------------------------------------------
     # FINAL CONSOLIDATED REPORT

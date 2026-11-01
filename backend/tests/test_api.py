@@ -1,4 +1,4 @@
-"""Unit tests for Phase 5 aggregation APIs, department cleaner, calendar, and dashboard.
+"""Unit tests for aggregation APIs, department cleaner, calendar, and dashboard.
 
 Tests:
 1. Deterministic department name cleaner on Indian High Court designations and authorities.

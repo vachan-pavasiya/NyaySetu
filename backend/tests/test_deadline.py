@@ -1,4 +1,4 @@
-"""Unit tests for Phase 3 Deterministic Deadline Resolution.
+"""Unit tests for Deterministic Deadline Resolution Engine.
 
 Role: Verifies deterministic parsing, date math, configurable service lag, and status bucketing
       using real phrases from ingested High Court judgments.

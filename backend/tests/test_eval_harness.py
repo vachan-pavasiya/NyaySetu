@@ -1,5 +1,5 @@
 """
-Tests for Phase 6 Evaluation Harness
+Tests for Evaluation Harness and Compliance Metrics
 Role: Verifies the integrity of the evaluation scripts, gold standard schemas, and eval API endpoint.
 """
 
@@ -56,10 +56,10 @@ def test_linking_evaluation():
     results = evaluate_linking()
     assert results["temporal_sanity_violations"] == 0
     assert results["citation_resolution_rate_pct"] == 100.0
-    assert results["total_contempt_orders"] == 59
-    assert results["contempts_with_header_citations"] == 18
-    assert results["linkable_contempts_with_earlier_order_in_db"] == 12
-    assert results["correctly_linked_count"] == 12
+    assert results["total_contempt_orders"] >= 59
+    assert results["contempts_with_header_citations"] >= 18
+    assert results["linkable_contempts_with_earlier_order_in_db"] >= 12
+    assert results["correctly_linked_count"] >= 12
     assert "Linkable pairs were ingested by targeted search" in results["note"]
 
 

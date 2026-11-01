@@ -1,4 +1,4 @@
-"""Agentic extraction loop state machine.
+"""Operative Direction Extraction Pipeline.
 
 Role: Orchestrates explicit state machine:
       SEGMENT -> EXTRACT -> VERIFY -> (if unverified) RETRY with feedback (max 2) -> DEADLINE RESOLUTION & DEDUP -> PERSIST.
@@ -24,7 +24,7 @@ logger = logging.getLogger("compliance_radar.agent")
 
 
 class ComplianceExtractionAgent:
-    """Explicit state graph for judgment operative direction extraction."""
+    """State machine orchestrator for judgment operative direction extraction."""
 
     def __init__(self, judgment: Judgment, max_retries: int = 2):
         self.judgment = judgment
@@ -43,7 +43,7 @@ class ComplianceExtractionAgent:
         logger.info(f"[{self.judgment.case_number or self.judgment.id}] {step_name} took {duration:.3f}s: {details}")
 
     def run(self, db: Session) -> Dict[str, Any]:
-        """Execute the agentic loop end-to-end."""
+        """Execute extraction and verification pipeline end-to-end."""
         total_start = time.perf_counter()
 
         # ------------------------------------------------------------------
