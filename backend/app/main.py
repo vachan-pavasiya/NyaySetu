@@ -504,6 +504,16 @@ class JudgmentListResponse(BaseModel):
 # System Endpoints
 # ============================================================================
 
+@app.get("/", include_in_schema=False)
+def root():
+    return {
+        "app": "NyaySetu: Court-Order Compliance Radar",
+        "status": "running",
+        "docs": "/docs",
+        "dashboard": "/dashboard",
+        "health": "/health",
+    }
+
 @app.get("/health", tags=["System"])
 def health_check(
     db: Session = Depends(get_db),
