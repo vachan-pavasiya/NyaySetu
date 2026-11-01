@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import {
-  CheckCircle2,
-  RefreshCw,
-  Play,
-  FileCheck,
-  Scale,
-  Calendar,
-  Link2,
-  Terminal,
-} from 'lucide-react';
 import type { EvalResultsResponse } from '../types';
 import { getApiUrl } from '../config';
+import { PageHeader } from './primitives/PageHeader';
+import { MetricFigure, MetricFigureRow } from './primitives/Figure';
+import { DataTable, TableHead, TableRow, TableHeaderCell, TableCell } from './primitives/DataTable';
+import { IconRefresh } from './primitives/Icon';
 
 export const EvalView: React.FC = () => {
   const [data, setData] = useState<EvalResultsResponse | null>(null);
@@ -54,284 +48,269 @@ export const EvalView: React.FC = () => {
   }, []);
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Header bar */}
-      <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+    <div className="space-y-6">
+      {/* Editorial Page Header */}
+      <PageHeader
+        volumeOrMeta="Empirical Benchmarking Harness · Real Open Data"
+        title="Evaluation &amp; Accuracy Verification"
+        deck="Benchmarking against hand-labelled ground truth standards. Verifies extraction precision, deterministic deadline arithmetic, and citation-resolution rule adherence."
+        actions={
           <div className="flex items-center gap-2">
-            <Scale className="w-5 h-5 text-slate-800" />
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Evaluation & Benchmarking Harness
-            </h2>
+            <button
+              onClick={fetchResults}
+              disabled={loading || running}
+              className="p-1.5 border border-[var(--border-rule-strong)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-muted)] text-[var(--ink-primary)] rounded-[2px]"
+              title="Refresh results"
+            >
+              <IconRefresh size={12} className={loading ? 'animate-spin' : ''} />
+            </button>
+            <button
+              onClick={handleRunAll}
+              disabled={running}
+              className="font-mono text-xs uppercase tracking-wider font-semibold px-3 py-1.5 border border-[var(--accent-oxblood)] bg-[var(--accent-oxblood)] text-white hover:opacity-90 disabled:opacity-50 rounded-[2px]"
+            >
+              {running ? 'Running Evaluation...' : 'Re-run Evaluation Suite'}
+            </button>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Empirical accuracy benchmarks against hand-labelled real Calcutta High Court gold standards.
-          </p>
-          {data?.timestamp && (
-            <div className="text-3xs font-mono text-slate-400 mt-1">
-              Last Evaluated: {new Date(data.timestamp).toLocaleString()}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={fetchResults}
-            disabled={loading || running}
-            className="p-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
-            title="Refresh Results"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-
-          <button
-            onClick={handleRunAll}
-            disabled={running}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-xs transition-all ${
-              running ? 'bg-slate-400 cursor-not-allowed' : 'bg-slate-900 hover:bg-slate-800'
-            }`}
-          >
-            {running ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Running Evaluation Harness...</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Re-run Full Eval Suite</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {error && (
-        <div className="rounded-lg bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700">
+        <div className="p-3 border border-[var(--status-overdue)] bg-[var(--status-overdue-bg)] font-sans text-xs text-[var(--status-overdue)]">
           {error}
         </div>
       )}
 
-      {data && (
+      {loading && !data ? (
+        <div className="py-20 border border-[var(--border-rule)] bg-[var(--bg-surface)] text-center font-sans text-xs text-[var(--ink-secondary)] italic">
+          Retrieving evaluation benchmark metrics...
+        </div>
+      ) : data ? (
         <>
-          {/* Summary Metric Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between text-2xs font-semibold text-slate-500">
-                <span>Gold Standard Set</span>
-                <FileCheck className="w-4 h-4 text-blue-500" />
-              </div>
-              <div className="text-2xl font-black text-slate-900 mt-1 font-mono">
-                {data.summary.gold_files_count} Orders
-              </div>
-              <div className="text-3xs text-slate-500 mt-1">
-                Hand-labelled ground truth files in <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">eval/gold/</code>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/30 p-4 shadow-xs">
-              <div className="flex items-center justify-between text-2xs font-semibold text-emerald-800">
-                <span>Extraction F1 Score</span>
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div className="text-2xl font-black text-emerald-900 mt-1 font-mono">
-                {data.summary.overall_extraction_f1}%
-              </div>
-              <div className="text-3xs text-emerald-700 mt-1 flex justify-between font-mono">
-                <span>P: {data.summary.overall_extraction_precision}%</span>
-                <span>R: {data.summary.overall_extraction_recall}%</span>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs">
-              <div className="flex items-center justify-between text-2xs font-semibold text-slate-500">
-                <span>Hallucination Rate</span>
-                <span className="text-3xs font-mono bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-bold">
-                  {data.summary.hallucination_rate_pct}%
-                </span>
-              </div>
-              <div className="text-2xl font-black text-slate-900 mt-1 font-mono">
-                {data.summary.hallucination_rate_pct}%
-              </div>
-              <div className="text-3xs text-slate-500 mt-1">
-                Enforced by verbatim substring verifier
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-purple-200/80 bg-purple-50/30 p-4 shadow-xs">
-              <div className="flex items-center justify-between text-2xs font-semibold text-purple-800">
-                <span>Citation-resolution rate (rule adherence)</span>
-                <Link2 className="w-4 h-4 text-purple-600" />
-              </div>
-              <div className="text-2xl font-black text-purple-900 mt-1 font-mono">
-                {data.linking?.citation_resolution_rate_pct ?? data.summary.citation_resolution_rate_pct ?? 100.0}%
-              </div>
-              <div className="text-3xs text-purple-700 mt-1 font-mono">
-                18 of 59 cite writs (30.5%) · 12 of 18 in DB (66.7%)
-              </div>
-            </div>
-          </div>
+          {/* Summary Metric Figures in a Single Ruled Row */}
+          <MetricFigureRow>
+            <MetricFigure
+              value={`${data.summary.gold_files_count} Orders`}
+              label="GOLD STANDARD"
+              sublabel="Hand-labelled in eval/gold/"
+              statusVariant="neutral"
+            />
+            <MetricFigure
+              value={`${data.summary.overall_extraction_f1}%`}
+              label="EXTRACTION F1"
+              sublabel={`P: ${data.summary.overall_extraction_precision}% · R: ${data.summary.overall_extraction_recall}%`}
+              statusVariant="complied"
+            />
+            <MetricFigure
+              value={`${data.summary.hallucination_rate_pct}%`}
+              label="HALLUCINATION RATE"
+              sublabel="Enforced by verbatim verifier"
+              statusVariant="complied"
+            />
+            <MetricFigure
+              value={`${data.linking?.citation_resolution_rate_pct ?? data.summary.citation_resolution_rate_pct ?? 100.0}%`}
+              label="CITATION-RESOLUTION"
+              sublabel="18 of 59 cited · 12 in DB"
+              statusVariant="complied"
+            />
+          </MetricFigureRow>
 
           {/* Deep Dive Section 1: Extraction Evaluation */}
-          <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
-            <div className="border-b border-slate-100 pb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="space-y-3">
+            <div className="border-b border-[var(--border-rule)] pb-2 flex flex-wrap items-baseline justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h2 className="font-serif font-bold text-base text-[var(--ink-primary)]">
                   1. Operative Direction Extraction (Precision, Recall &amp; F1)
-                </h3>
-                <p className="text-2xs text-slate-500">
-                  Evaluated against {data.summary.gold_files_count} gold standard judgment annotations using fuzzy matching on party &amp; action, and exact matching on deadline phrases.
+                </h2>
+                <p className="font-sans text-xs text-[var(--ink-secondary)] mt-0.5">
+                  Evaluated against {data.summary.gold_files_count} ground truth annotations using fuzzy token matching on party &amp; action, and exact matching on deadline phrases.
                 </p>
               </div>
-              <div className="text-2xs font-mono bg-slate-100 text-slate-700 px-2.5 py-1 rounded">
-                Avg Latency: {data.extraction.average_latency_seconds}s / doc
-              </div>
+              {data.extraction?.average_latency_seconds !== undefined && (
+                <div className="font-mono text-[11px] text-[var(--ink-secondary)] tabular-nums">
+                  Average Latency: {data.extraction.average_latency_seconds}s / doc
+                </div>
+              )}
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-100 text-xs text-left">
-                <thead className="bg-slate-50 font-mono text-2xs uppercase tracking-wider text-slate-500">
+            {data.extraction?.status === 'no human gold labels available' ? (
+              <div className="border border-[var(--border-rule)] bg-[var(--bg-surface)] p-6 text-center font-sans text-xs text-[var(--ink-secondary)] italic space-y-1">
+                <div>No human gold labels found in <code className="font-mono">eval/gold/</code>.</div>
+                <div className="text-[11px] text-[var(--ink-muted)]">
+                  Per EVAL INTEGRITY rule: Gold data comes only from the user. Run <code className="font-mono text-[var(--accent-oxblood)]">python eval/label_cli.py</code> to label real orders.
+                </div>
+              </div>
+            ) : (
+              <DataTable>
+                <TableHead>
                   <tr>
-                    <th className="py-2.5 px-3">Field Component</th>
-                    <th className="py-2.5 px-3">Precision</th>
-                    <th className="py-2.5 px-3">Recall</th>
-                    <th className="py-2.5 px-3">F1 Score</th>
-                    <th className="py-2.5 px-3">True Positives</th>
-                    <th className="py-2.5 px-3">False Positives</th>
-                    <th className="py-2.5 px-3">False Negatives</th>
+                    <TableHeaderCell>Field Component</TableHeaderCell>
+                    <TableHeaderCell align="right">Precision</TableHeaderCell>
+                    <TableHeaderCell align="right">Recall</TableHeaderCell>
+                    <TableHeaderCell align="right">F1 Score</TableHeaderCell>
+                    <TableHeaderCell align="right">True Positives</TableHeaderCell>
+                    <TableHeaderCell align="right">False Positives</TableHeaderCell>
+                    <TableHeaderCell align="right">False Negatives</TableHeaderCell>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono text-2xs">
+                </TableHead>
+                <tbody>
                   {Object.entries(data.extraction.metrics_per_field || {}).map(([key, m]: [string, any]) => (
-                    <tr key={key} className="hover:bg-slate-50/60">
-                      <td className="py-2.5 px-3 font-semibold text-slate-900 capitalize">
-                        {key.replace('_', ' ')}
-                      </td>
-                      <td className="py-2.5 px-3 text-emerald-700 font-bold">{m.precision}%</td>
-                      <td className="py-2.5 px-3 text-blue-700 font-bold">{m.recall}%</td>
-                      <td className="py-2.5 px-3 text-purple-700 font-bold">{m.f1}%</td>
-                      <td className="py-2.5 px-3 text-slate-700">{m.tp}</td>
-                      <td className="py-2.5 px-3 text-slate-700">{m.fp}</td>
-                      <td className="py-2.5 px-3 text-slate-700">{m.fn}</td>
-                    </tr>
+                    <TableRow key={key}>
+                      <TableCell className="font-semibold capitalize">
+                        {key.replace(/_/g, ' ')}
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums text-[var(--status-complied)] font-semibold">
+                        {m.precision}%
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums text-[var(--status-complied)] font-semibold">
+                        {m.recall}%
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums text-[var(--status-complied)] font-semibold">
+                        {m.f1}%
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums">{m.tp}</TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums">{m.fp}</TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums">{m.fn}</TableCell>
+                    </TableRow>
                   ))}
-                  <tr className="bg-slate-50/80 font-bold">
-                    <td className="py-3 px-3 text-slate-900 uppercase">Overall Extraction</td>
-                    <td className="py-3 px-3 text-emerald-800">{data.extraction.overall_extraction.precision}%</td>
-                    <td className="py-3 px-3 text-blue-800">{data.extraction.overall_extraction.recall}%</td>
-                    <td className="py-3 px-3 text-purple-800">{data.extraction.overall_extraction.f1}%</td>
-                    <td className="py-3 px-3">{data.extraction.overall_extraction.true_positives}</td>
-                    <td className="py-3 px-3">{data.extraction.overall_extraction.false_positives}</td>
-                    <td className="py-3 px-3">{data.extraction.overall_extraction.false_negatives}</td>
-                  </tr>
+                  {data.extraction.overall_extraction && (
+                    <TableRow className="border-t-2 border-[var(--border-rule-strong)] font-bold bg-[var(--bg-surface-muted)]">
+                      <TableCell className="uppercase">Overall Extraction</TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums text-[var(--status-complied)]">
+                        {data.extraction.overall_extraction.precision}%
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums text-[var(--status-complied)]">
+                        {data.extraction.overall_extraction.recall}%
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums text-[var(--status-complied)]">
+                        {data.extraction.overall_extraction.f1}%
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums">
+                        {data.extraction.overall_extraction.true_positives}
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums">
+                        {data.extraction.overall_extraction.false_positives}
+                      </TableCell>
+                      <TableCell align="right" className="font-mono tabular-nums">
+                        {data.extraction.overall_extraction.false_negatives}
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </tbody>
-              </table>
-            </div>
+              </DataTable>
+            )}
           </div>
 
-          {/* Deep Dive Section 2: Deadline Math & Linking */}
+          {/* Deep Dive Section 2: Deadline Math & Citation-Resolution Rule Adherence */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Deterministic Deadline Resolution */}
-            <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-600" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    2. Deterministic Deadline Resolution
-                  </h3>
-                </div>
-                <span className="font-mono text-2xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                  {data.deadline_resolution.overall_exact_accuracy_pct}% Accuracy
+            {/* Deterministic Deadline Math */}
+            <div className="border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 space-y-3">
+              <div className="flex items-baseline justify-between border-b border-[var(--border-rule)] pb-2">
+                <h3 className="font-serif font-bold text-sm text-[var(--ink-primary)]">
+                  2. Deterministic Deadline Resolution
+                </h3>
+                <span className="font-mono text-xs font-semibold text-[var(--status-complied)]">
+                  {data.deadline_resolution?.overall_exact_accuracy_pct ?? 0}% Accuracy
                 </span>
               </div>
 
-              <p className="text-2xs text-slate-600">
-                Evaluated against {data.deadline_resolution.total_test_cases} hand-calculated real High Court date cases in <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">eval/deadline_cases.json</code>.
+              <p className="font-sans text-xs text-[var(--ink-secondary)]">
+                Evaluated against hand-calculated real High Court date cases in <code className="font-mono">eval/deadline_cases.json</code>.
               </p>
 
-              <div className="space-y-2 font-mono text-2xs">
-                {Object.entries(data.deadline_resolution.field_accuracies || {}).map(([metric, val]: [string, any]) => (
-                  <div key={metric} className="flex items-center justify-between bg-slate-50 p-2.5 rounded border border-slate-100">
-                    <span className="text-slate-700 capitalize">{metric.replace(/_/g, ' ')}</span>
-                    <span className="font-bold text-emerald-700">{val.accuracy_pct}% ({val.matches}/{val.total})</span>
-                  </div>
-                ))}
-              </div>
+              {data.deadline_resolution?.status === 'no human gold labels available' ? (
+                <div className="border border-[var(--border-rule)] bg-[var(--bg-paper)] p-4 text-center font-sans text-xs text-[var(--ink-secondary)] italic">
+                  No human benchmark values populated in <code className="font-mono">eval/deadline_cases.json</code>.
+                </div>
+              ) : (
+                <div className="space-y-1.5 font-mono text-xs">
+                  {Object.entries(data.deadline_resolution?.field_accuracies || {}).map(([metric, val]: [string, any]) => (
+                    <div
+                      key={metric}
+                      className="flex items-center justify-between p-2 border-b border-[var(--border-rule)] last:border-b-0"
+                    >
+                      <span className="capitalize text-[var(--ink-secondary)]">{metric.replace(/_/g, ' ')}</span>
+                      <span className="font-bold text-[var(--status-complied)]">
+                        {val.accuracy_pct}% ({val.matches}/{val.total})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              <div className="rounded-lg bg-slate-50 p-3 border border-slate-100 text-3xs text-slate-500 italic">
+              <div className="font-mono text-[10px] text-[var(--ink-muted)] pt-1">
                 Rule: The LLM never computes dates. All windows are calculated via deterministic Python dateutil rules with 30-day service lag bounds.
               </div>
             </div>
 
             {/* Citation-Resolution Rate */}
-            <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2">
-                  <Link2 className="w-4 h-4 text-purple-600" />
-                  <h3 className="text-sm font-bold text-slate-900">
-                    3. Citation-Resolution Rate (Rule Adherence)
-                  </h3>
-                </div>
-                <span className="font-mono text-2xs px-2 py-0.5 rounded bg-purple-100 text-purple-800 font-bold">
+            <div className="border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 space-y-3">
+              <div className="flex items-baseline justify-between border-b border-[var(--border-rule)] pb-2">
+                <h3 className="font-serif font-bold text-sm text-[var(--ink-primary)]">
+                  3. Citation-Resolution Rate (Rule Adherence)
+                </h3>
+                <span className="font-mono text-xs font-semibold text-[var(--status-complied)]">
                   {data.linking?.citation_resolution_rate_pct ?? 100.0}% Adherence
                 </span>
               </div>
 
-              <p className="text-2xs text-slate-600">
+              <p className="font-sans text-xs text-[var(--ink-secondary)] leading-relaxed">
                 18 of 59 contempt orders contain a header citation (30.5%), and 12 of 18 cited writs exist in the DB (66.7%).
               </p>
 
-              <div className="rounded-lg bg-amber-50/70 border border-amber-200/80 p-2.5 text-3xs text-amber-900 leading-relaxed font-sans">
-                <span className="font-bold uppercase tracking-wider text-amber-800 block mb-0.5 font-mono">Evaluation Note:</span>
+              <div className="border-l-2 border-[var(--status-pending)] bg-[var(--status-pending-bg)] p-2.5 font-sans text-xs text-[var(--ink-secondary)] leading-relaxed">
+                <strong className="text-[var(--ink-primary)] block font-mono text-[10px] uppercase">
+                  Evaluation Note:
+                </strong>
                 Linkable pairs were ingested by targeted search, so this is not an accuracy estimate.
               </div>
 
-              <div className="space-y-2 font-mono text-2xs">
-                <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
-                  <span className="text-slate-700">Contempt Orders with Header Citations</span>
-                  <span className="font-bold text-slate-900">18 of 59 (30.5%)</span>
+              <div className="space-y-1.5 font-mono text-xs">
+                <div className="flex items-center justify-between p-2 border-b border-[var(--border-rule)]">
+                  <span className="text-[var(--ink-secondary)]">Contempt Orders with Header Citations</span>
+                  <span className="font-bold text-[var(--ink-primary)]">18 of 59 (30.5%)</span>
                 </div>
-                <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
-                  <span className="text-slate-700">Cited Writs Present in Database</span>
-                  <span className="font-bold text-slate-900">12 of 18 (66.7%)</span>
+                <div className="flex items-center justify-between p-2 border-b border-[var(--border-rule)]">
+                  <span className="text-[var(--ink-secondary)]">Cited Writs Present in Database</span>
+                  <span className="font-bold text-[var(--ink-primary)]">12 of 18 (66.7%)</span>
                 </div>
-                <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
-                  <span className="text-slate-700">Citation-Resolution Rule Adherence</span>
-                  <span className="font-bold text-emerald-700">{data.linking?.citation_resolution_rate_pct ?? 100.0}% (12 of 12)</span>
+                <div className="flex items-center justify-between p-2 border-b border-[var(--border-rule)]">
+                  <span className="text-[var(--ink-secondary)]">Citation-Resolution Rule Adherence</span>
+                  <span className="font-bold text-[var(--status-complied)]">
+                    {data.linking?.citation_resolution_rate_pct ?? 100.0}% (12 of 12)
+                  </span>
                 </div>
-                <div className="flex items-center justify-between bg-slate-50 p-2 rounded border border-slate-100">
-                  <span className="text-slate-700">Temporal Sanity Violations</span>
-                  <span className="font-bold text-emerald-700">{data.linking?.temporal_sanity_violations ?? 0} (Enforced)</span>
+                <div className="flex items-center justify-between p-2">
+                  <span className="text-[var(--ink-secondary)]">Temporal Sanity Violations</span>
+                  <span className="font-bold text-[var(--status-complied)]">
+                    {data.linking?.temporal_sanity_violations ?? 0} (Enforced)
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Reproducibility CLI Box */}
-          <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-3">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-              <Terminal className="w-4 h-4 text-slate-700" />
-              <h3 className="text-xs font-bold text-slate-900">
-                CLI Reproduction Commands
-              </h3>
-            </div>
-            <p className="text-2xs text-slate-500">
-              Run any evaluation module standalone from the terminal to reproduce these exact numbers:
+          {/* CLI Reproduction Commands Box */}
+          <div className="border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 space-y-2">
+            <h3 className="font-serif font-bold text-sm text-[var(--ink-primary)]">
+              CLI Reproduction Commands
+            </h3>
+            <p className="font-sans text-xs text-[var(--ink-secondary)]">
+              Run any evaluation module standalone from the terminal to verify these exact metrics:
             </p>
-            <div className="bg-slate-900 text-slate-100 p-3 rounded-lg font-mono text-2xs space-y-1 overflow-x-auto">
-              <div># 1. Extraction Precision / Recall / F1 &amp; Hallucination Rate</div>
-              <div className="text-emerald-400">python eval/run_extraction_eval.py</div>
-              <div className="pt-1"># 2. Deterministic Deadline Math vs 25 Hand-Calculated Cases</div>
-              <div className="text-emerald-400">python eval/run_deadline_eval.py</div>
-              <div className="pt-1"># 3. Citation-Resolution Rate (Rule Adherence)</div>
-              <div className="text-emerald-400">python eval/run_linking_eval.py</div>
-              <div className="pt-1"># 4. Master Full Suite Run (Updates eval/results/latest.json)</div>
-              <div className="text-emerald-400">python eval/run_all_evals.py</div>
+            <div className="border border-[var(--border-rule-strong)] bg-[var(--ink-primary)] text-[var(--bg-paper)] p-3 font-mono text-xs space-y-1.5 overflow-x-auto">
+              <div className="text-[var(--ink-muted)]"># 1. Extraction Precision / Recall / F1 &amp; Hallucination Rate</div>
+              <div>python eval/run_extraction_eval.py</div>
+              <div className="text-[var(--ink-muted)] pt-1"># 2. Deterministic Deadline Math Evaluation</div>
+              <div>python eval/run_deadline_eval.py</div>
+              <div className="text-[var(--ink-muted)] pt-1"># 3. Citation-Resolution Rate (Rule Adherence)</div>
+              <div>python eval/run_linking_eval.py</div>
+              <div className="text-[var(--ink-muted)] pt-1"># 4. Master Full Suite Run (Updates eval/results/latest.json)</div>
+              <div>python eval/run_all_evals.py</div>
             </div>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   );
 };
-

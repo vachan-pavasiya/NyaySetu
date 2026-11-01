@@ -178,6 +178,22 @@ python eval/run_all_evals.py
 
 ---
 
+## Evaluation Integrity & Benchmark Scope
+
+- `eval/agent_generated holds auto-generated drafts, excluded from all metrics`.
+- Per **EVAL INTEGRITY** rule: Gold benchmark data comes strictly from human ground-truth annotations in `eval/gold/` and `eval/deadline_cases.json`. The pipeline never creates, fills, or infers gold labels.
+
+---
+
+## Known Limitations & Legal Disclaimers
+
+1. **UNVERIFIED is Common**: High Court registries do not maintain an automatic feedback loop reporting department compliance back into the original writ case file. Therefore, `UNVERIFIED` indicates the absence of subsequent public proceedings in the open dataset—not disobedience or non-compliance.
+2. **Dataset Time Horizon**: The public AWS Open Data repository currently covers historical judgment batches spanning **2019 to 2023**.
+3. **Legal Information, Not Legal Advice**: NyaySetu is an analytical compliance research tool. Output records and deadline estimates represent structured information from public dockets, not legal opinions or advisory services.
+4. **Scanned Image PDFs**: PyMuPDF extracts digital vector text. Historical orders uploaded as image-only scans without an embedded text layer are detected and gracefully marked `FAILED_UNREADABLE` with explicit failure logs without interrupting batch ingestion.
+
+---
+
 ## Dataset Recommendation
 - **Recommended Court:** Calcutta High Court (Appellate Side) (`court=19_16`, `bench=calcutta_appellate_side`)
 - **Recommended Year:** 2023

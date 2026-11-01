@@ -5,6 +5,7 @@ Role: Configures HTTP server, CORS middleware, lifespan events, health check,
 Data flow: Inbound HTTP -> Router -> Database/Pipelines -> JSON response.
 """
 
+import os
 import csv
 import io
 import json
@@ -48,8 +49,21 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan manager: initialises database tables on startup."""
+    """Application lifespan manager: initialises database tables and runs auto-bootstrap if DB is empty."""
     Base.metadata.create_all(bind=engine)
+
+    # Auto-run bootstrap if DB is completely empty on first deploy
+    db = SessionLocal()
+    try:
+        if db.query(Judgment).count() == 0 and os.getenv("DISABLE_AUTO_BOOTSTRAP", "").lower() != "true":
+            logger.info("Database is empty on initial startup. Triggering auto-bootstrap from real S3 Open Data...")
+            from scripts.bootstrap import run_bootstrap
+            run_bootstrap(exit_on_failure=False)
+    except Exception as exc:
+        logger.warning(f"Initial startup bootstrap check: {exc}")
+    finally:
+        db.close()
+
     yield
 
 

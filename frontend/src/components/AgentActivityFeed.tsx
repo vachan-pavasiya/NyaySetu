@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, RefreshCw, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronRight, Play } from 'lucide-react';
 import type { AgentRunItem } from '../types';
 import { getApiUrl } from '../config';
+import { IconRefresh, IconChevronRight } from './primitives/Icon';
 
 export const AgentActivityFeed: React.FC = () => {
   const [runs, setRuns] = useState<AgentRunItem[]>([]);
@@ -26,7 +26,7 @@ export const AgentActivityFeed: React.FC = () => {
 
   useEffect(() => {
     fetchRuns();
-    const interval = setInterval(fetchRuns, 10000); // Poll every 10s for new runs
+    const interval = setInterval(fetchRuns, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -37,10 +37,10 @@ export const AgentActivityFeed: React.FC = () => {
       const res = await fetch(getApiUrl('/agent/rescan'), { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
-        setRescanMessage(data.message || 'Rescan completed successfully');
+        setRescanMessage(data.message || 'Database rescan complete.');
         await fetchRuns();
       } else {
-        setRescanMessage('Rescan failed. Check server logs.');
+        setRescanMessage('Rescan failed. Check server log.');
       }
     } catch (err) {
       setRescanMessage(`Rescan failed: ${String(err)}`);
@@ -49,126 +49,116 @@ export const AgentActivityFeed: React.FC = () => {
     }
   };
 
-  const getOutcomeBadge = (outcome: string) => {
-    switch (outcome) {
-      case 'SUCCESS':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <CheckCircle2 className="w-2.5 h-2.5" /> SUCCESS
-          </span>
-        );
-      case 'NO_CANDIDATES':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-            NO CANDIDATES
-          </span>
-        );
-      case 'PARTIAL_SUCCESS':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-            <AlertCircle className="w-2.5 h-2.5" /> PARTIAL
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">
-            <AlertCircle className="w-2.5 h-2.5" /> FAILED
-          </span>
-        );
+  const renderOutcomeStamp = (outcome: string) => {
+    if (outcome === 'SUCCESS') {
+      return (
+        <span className="font-mono text-[9px] uppercase tracking-wider border border-[var(--status-complied)] text-[var(--status-complied)] bg-[var(--status-complied-bg)] rounded-[2px] px-1 py-0.5 leading-tight font-semibold">
+          SUCCESS
+        </span>
+      );
     }
+    if (outcome === 'NO_CANDIDATES') {
+      return (
+        <span className="font-mono text-[9px] uppercase tracking-wider border border-[var(--border-rule-strong)] text-[var(--ink-secondary)] bg-[var(--bg-surface-muted)] rounded-[2px] px-1 py-0.5 leading-tight">
+          NO CANDIDATES
+        </span>
+      );
+    }
+    if (outcome === 'PARTIAL_SUCCESS') {
+      return (
+        <span className="font-mono text-[9px] uppercase tracking-wider border border-[var(--status-pending)] text-[var(--status-pending)] bg-[var(--status-pending-bg)] rounded-[2px] px-1 py-0.5 leading-tight font-semibold">
+          PARTIAL
+        </span>
+      );
+    }
+    return (
+      <span className="font-mono text-[9px] uppercase tracking-wider border border-[var(--status-overdue)] text-[var(--status-overdue)] bg-[var(--status-overdue-bg)] rounded-[2px] px-1 py-0.5 leading-tight font-semibold">
+        FAILED
+      </span>
+    );
   };
 
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-      {/* Activity Header */}
-      <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-            <Activity className="w-4 h-4" />
+    <section className="border border-[var(--border-rule)] bg-[var(--bg-surface)]">
+      {/* Header bar */}
+      <div className="p-3 border-b border-[var(--border-rule)] flex flex-wrap items-center justify-between gap-3 bg-[var(--bg-surface-muted)]">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-serif font-bold text-sm text-[var(--ink-primary)]">
+              Follow-Up Activity Record
+            </h3>
+            <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--accent-oxblood)] border border-[var(--accent-oxblood)] rounded-[2px] px-1 py-0.2">
+              Autonomous
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-slate-900">Autonomous Follow-Up Activity Feed</h3>
-              <span className="text-3xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Agent Loop Active
-              </span>
-            </div>
-            <p className="text-2xs text-slate-500">
-              Live background monitoring of newly ingested orders, follow-up linking, and status changes
-            </p>
-          </div>
+          <p className="font-sans text-[11px] text-[var(--ink-secondary)] mt-0.5">
+            Log of automated cross-order linking, verbatim extraction, and compliance status updates.
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={fetchRuns}
             disabled={loading}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Refresh feed"
+            className="p-1 text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] border border-[var(--border-rule)] rounded-[2px] bg-[var(--bg-surface)]"
+            title="Refresh activity feed"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <IconRefresh size={12} className={loading ? 'animate-spin' : ''} />
           </button>
 
           <button
             onClick={handleRescan}
             disabled={rescanning}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-all disabled:opacity-50"
+            className="font-mono text-[10px] uppercase tracking-wider font-semibold px-2.5 py-1 border border-[var(--accent-oxblood)] bg-[var(--accent-oxblood)] text-white hover:opacity-90 disabled:opacity-50 rounded-[2px]"
           >
-            {rescanning ? (
-              <>
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Scanning DB...</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5" />
-                <span>Rescan Database</span>
-              </>
-            )}
+            {rescanning ? 'Scanning Database...' : 'Rescan Database'}
           </button>
         </div>
       </div>
 
       {rescanMessage && (
-        <div className="px-4 py-2 bg-indigo-50/70 border-b border-indigo-100 text-xs text-indigo-900 flex items-center justify-between">
+        <div className="px-3 py-1.5 border-b border-[var(--border-rule)] bg-[var(--bg-surface-muted)] font-mono text-xs text-[var(--ink-primary)] flex items-center justify-between">
           <span>{rescanMessage}</span>
-          <button onClick={() => setRescanMessage(null)} className="text-xs text-indigo-500 hover:text-indigo-800">
+          <button
+            onClick={() => setRescanMessage(null)}
+            className="font-mono text-[10px] text-[var(--accent-oxblood)] hover:underline"
+          >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* Feed List */}
-      <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+      {/* Feed list */}
+      <div className="divide-y divide-[var(--border-rule)] max-h-80 overflow-y-auto font-sans text-xs">
         {runs.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-400">
-            <Clock className="w-5 h-5 mx-auto mb-1.5 text-slate-300" />
-            No agent activity runs recorded yet. Click &quot;Rescan Database&quot; or ingest judgments.
+          <div className="py-8 text-center text-xs text-[var(--ink-secondary)] italic">
+            No pipeline runs recorded in this session. Ingest judgments or click &ldquo;Rescan Database&rdquo; to trigger linking.
           </div>
         ) : (
           runs.map((r) => {
             const isExpanded = expandedRunId === r.id;
             return (
-              <div key={r.id} className="p-4 hover:bg-slate-50/60 transition-colors">
+              <div key={r.id} className="p-2.5 hover:bg-[var(--bg-surface-muted)] transition-colors">
                 <div
-                  className="flex items-start justify-between gap-3 cursor-pointer"
+                  className="flex items-start justify-between gap-3 cursor-pointer select-none"
                   onClick={() => setExpandedRunId(isExpanded ? null : r.id)}
                 >
-                  <div className="flex items-start gap-2.5">
-                    <button className="mt-0.5 text-slate-400 hover:text-slate-600">
-                      {isExpanded ? (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      )}
-                    </button>
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 text-[var(--ink-secondary)]">
+                      <IconChevronRight
+                        size={12}
+                        className={`transform transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                      />
+                    </span>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-slate-900">{r.message}</span>
-                        {getOutcomeBadge(r.outcome)}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-[13px] text-[var(--ink-primary)]">
+                          {r.message}
+                        </span>
+                        {renderOutcomeStamp(r.outcome)}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-2xs text-slate-400">
-                        <span className="font-mono uppercase">{r.trigger}</span>
+                      <div className="flex items-center gap-2 mt-1 font-mono text-[10px] text-[var(--ink-secondary)]">
+                        <span className="uppercase">{r.trigger}</span>
                         <span>•</span>
                         <span>{r.duration_seconds.toFixed(2)}s runtime</span>
                         <span>•</span>
@@ -180,52 +170,48 @@ export const AgentActivityFeed: React.FC = () => {
                   </div>
 
                   <div className="text-right shrink-0">
-                    <div className="text-2xs font-mono font-medium text-slate-600">
+                    <span className="font-mono text-xs font-semibold tabular-nums text-[var(--ink-primary)]">
                       {r.directions_updated_count > 0 ? (
-                        <span className="text-emerald-700 font-semibold font-mono">
+                        <span className="text-[var(--status-complied)]">
                           +{r.directions_updated_count} updated
                         </span>
                       ) : (
-                        <span>0 updated</span>
+                        <span className="text-[var(--ink-secondary)]">0 updated</span>
                       )}
-                    </div>
+                    </span>
                   </div>
                 </div>
 
-                {/* Expanded State Graph & Step Telemetry */}
                 {isExpanded && (
-                  <div className="mt-3 ml-6 p-3 rounded-lg bg-slate-50 border border-slate-200/80 space-y-2">
-                    <div className="text-3xs font-bold uppercase tracking-wider text-slate-400">
-                      Pipeline Execution Steps
+                  <div className="mt-2 ml-5 p-2 border border-[var(--border-rule)] bg-[var(--bg-paper)] space-y-1.5 font-mono text-[11px]">
+                    <div className="text-[9px] uppercase tracking-wider text-[var(--ink-muted)] font-semibold border-b border-[var(--border-rule)] pb-1">
+                      Execution Steps ({r.steps.length})
                     </div>
-                    <div className="space-y-1.5 font-mono text-2xs">
-                      {r.steps.map((st, sIdx) => (
-                        <div
-                          key={sIdx}
-                          className="flex items-center justify-between py-1 px-2 rounded bg-white border border-slate-100"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                            <span className="font-semibold text-slate-800">{st.step}</span>
-                            <span className="text-3xs text-slate-400">({st.status})</span>
-                          </div>
-                          <div className="flex items-center gap-3 text-slate-500">
-                            {st.details?.candidates_count !== undefined && (
-                              <span>candidates: {st.details.candidates_count}</span>
-                            )}
-                            {st.details?.verdict && (
-                              <span className="text-indigo-600 font-semibold">{st.details.verdict}</span>
-                            )}
-                            {st.details?.direction_id && <span>dir #{st.details.direction_id}</span>}
-                            <span>{st.duration_seconds}s</span>
-                          </div>
+                    {r.steps.map((st, sIdx) => (
+                      <div
+                        key={sIdx}
+                        className="flex items-center justify-between py-1 px-1.5 border-b border-[var(--border-rule)] last:border-b-0"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-[var(--ink-primary)]">{st.step}</span>
+                          <span className="text-[var(--ink-muted)]">({st.status})</span>
                         </div>
-                      ))}
-                    </div>
+                        <div className="flex items-center gap-2 text-[var(--ink-secondary)]">
+                          {st.details?.candidates_count !== undefined && (
+                            <span>candidates: {st.details.candidates_count}</span>
+                          )}
+                          {st.details?.verdict && (
+                            <span className="text-[var(--accent-oxblood)] font-semibold">{st.details.verdict}</span>
+                          )}
+                          {st.details?.direction_id && <span>dir #{st.details.direction_id}</span>}
+                          <span>{st.duration_seconds}s</span>
+                        </div>
+                      </div>
+                    ))}
 
                     {r.errors && (
-                      <div className="mt-2 p-2 rounded bg-rose-50 border border-rose-200 text-2xs text-rose-800">
-                        <span className="font-bold">Errors: </span>
+                      <div className="mt-1 p-1.5 border border-[var(--status-overdue)] bg-[var(--status-overdue-bg)] text-[var(--status-overdue)]">
+                        <strong>Error: </strong>
                         {r.errors}
                       </div>
                     )}
@@ -236,7 +222,6 @@ export const AgentActivityFeed: React.FC = () => {
           })
         )}
       </div>
-    </div>
+    </section>
   );
 };
-

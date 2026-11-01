@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, RefreshCw, ExternalLink, ShieldCheck } from 'lucide-react';
 import type { CalendarResponse, CalendarDirectionItem } from '../types';
 import { StatusBadge, FlagBadges } from './StatusBadge';
+import { PageHeader } from './primitives/PageHeader';
+import { DataTable, TableHead, TableRow, TableHeaderCell, TableCell } from './primitives/DataTable';
+import { IconChevronLeft, IconChevronRight, IconExternalLink } from './primitives/Icon';
 import { getApiUrl } from '../config';
 
 interface CalendarViewProps {
@@ -9,7 +11,6 @@ interface CalendarViewProps {
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectJudgment }) => {
-  // Common months in dataset with deadline windows
   const popularMonths = [
     '2023-10',
     '2023-07',
@@ -63,176 +64,161 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectJudgment }) 
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Header and Month Controls */}
-      <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+    <div className="space-y-6">
+      <PageHeader
+        volumeOrMeta="Gazette Compliance Schedule"
+        title="Compliance Deadline Calendar"
+        deck="Deterministic deadline windows grouped by expiration month. All deadlines bound by estimated 30-day service lag."
+        actions={
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-5 h-5 text-slate-700" />
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight">Compliance Deadline Calendar</h2>
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Deterministic deadline windows calculated per order ({data?.total_directions || 0} directions due in {currentMonth}).
-          </p>
-        </div>
-
-        {/* Month Navigation */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => changeMonth(-1)}
-              className="p-1.5 rounded hover:bg-white text-slate-600 transition-colors"
+              className="p-1.5 border border-[var(--border-rule-strong)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-muted)] text-[var(--ink-primary)] rounded-[2px]"
               title="Previous Month"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <IconChevronLeft size={12} />
             </button>
             <input
               type="month"
               value={currentMonth}
               onChange={(e) => e.target.value && setCurrentMonth(e.target.value)}
-              className="text-xs font-mono font-semibold bg-transparent px-2 py-1 border-0 focus:ring-0 text-slate-800"
+              className="px-2 py-1 font-mono text-xs font-semibold border border-[var(--border-rule-strong)] bg-[var(--bg-surface)] text-[var(--ink-primary)] rounded-[2px]"
             />
             <button
               onClick={() => changeMonth(1)}
-              className="p-1.5 rounded hover:bg-white text-slate-600 transition-colors"
+              className="p-1.5 border border-[var(--border-rule-strong)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-muted)] text-[var(--ink-primary)] rounded-[2px]"
               title="Next Month"
             >
-              <ChevronRight className="w-4 h-4" />
+              <IconChevronRight size={12} />
             </button>
           </div>
+        }
+      />
 
-          {/* Quick Select Buttons */}
-          <div className="hidden sm:flex items-center gap-1 text-2xs">
-            <span className="text-slate-400 mr-1">Active:</span>
-            {popularMonths.slice(0, 4).map((m) => (
-              <button
-                key={m}
-                onClick={() => setCurrentMonth(m)}
-                className={`px-2 py-1 rounded font-mono transition-colors ${
-                  currentMonth === m
-                    ? 'bg-slate-900 text-white font-bold'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                }`}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-
+      {/* Quick Jump Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs font-mono">
+        <span className="text-[var(--ink-muted)] shrink-0">Quick jump:</span>
+        {popularMonths.map((m) => (
           <button
-            onClick={() => fetchCalendar(currentMonth)}
-            className="p-2 text-slate-400 hover:text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
-            title="Refresh"
+            key={m}
+            onClick={() => setCurrentMonth(m)}
+            className={`px-2 py-0.5 border rounded-[2px] transition-colors shrink-0 ${
+              currentMonth === m
+                ? 'border-[var(--accent-oxblood)] bg-[var(--accent-oxblood)] text-white font-semibold'
+                : 'border-[var(--border-rule)] bg-[var(--bg-surface)] text-[var(--ink-secondary)] hover:bg-[var(--bg-surface-muted)]'
+            }`}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            {m}
           </button>
-        </div>
+        ))}
       </div>
 
-      {/* Month Summary Cards */}
+      {/* Summary figures for the month */}
       {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-slate-400">Total Due in Month</div>
-            <div className="text-2xl font-black text-slate-900 mt-1 font-mono">{data.total_directions}</div>
+        <div className="border border-[var(--border-rule)] bg-[var(--bg-surface)] p-3 font-mono text-xs flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
+            <span>
+              Total Due in {currentMonth}: <strong>{data.total_directions}</strong>
+            </span>
+            <span className="text-[var(--status-complied)]">
+              Complied: <strong>{data.status_summary?.COMPLIED || 0}</strong>
+            </span>
+            <span className="text-[var(--status-pending)]">
+              Pending: <strong>{data.status_summary?.PENDING || 0}</strong>
+            </span>
+            <span className="text-[var(--status-unverified)]">
+              Unverified: <strong>{data.status_summary?.UNVERIFIED || 0}</strong>
+            </span>
           </div>
-          <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-4 shadow-xs">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-emerald-700">Complied</div>
-            <div className="text-2xl font-black text-emerald-800 mt-1 font-mono">{data.status_summary.COMPLIED}</div>
-          </div>
-          <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4 shadow-xs">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-amber-700">Pending Process</div>
-            <div className="text-2xl font-black text-amber-800 mt-1 font-mono">{data.status_summary.PENDING}</div>
-          </div>
-          <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 shadow-xs">
-            <div className="text-2xs font-semibold uppercase tracking-wider text-slate-600">Unverified Record</div>
-            <div className="text-2xl font-black text-slate-800 mt-1 font-mono">{data.status_summary.UNVERIFIED}</div>
-          </div>
+          <span className="text-[10px] text-[var(--ink-muted)] uppercase">
+            Window bounds: Order date + N + 30 days
+          </span>
         </div>
       )}
 
-      {/* Directions List View */}
+      {/* Table list */}
       {loading ? (
-        <div className="rounded-xl border border-slate-200 bg-white py-24 text-center text-slate-400 text-xs">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-slate-400" />
-          Loading compliance deadlines for {currentMonth}...
+        <div className="py-20 border border-[var(--border-rule)] bg-[var(--bg-surface)] text-center font-sans text-xs text-[var(--ink-secondary)] italic">
+          Loading scheduled directions for {currentMonth}...
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center text-rose-700 text-xs">
+        <div className="p-4 border border-[var(--status-overdue)] bg-[var(--status-overdue-bg)] text-center font-sans text-xs text-[var(--status-overdue)]">
           {error}
         </div>
-      ) : data?.directions.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-400 text-xs italic">
-          No compliance deadlines fall within {currentMonth}.
+      ) : !data || data.directions.length === 0 ? (
+        <div className="py-20 border border-[var(--border-rule)] bg-[var(--bg-surface)] text-center font-sans text-xs text-[var(--ink-secondary)] italic">
+          No operative mandates with deadline windows closing in {currentMonth}.
         </div>
       ) : (
-        <div className="space-y-3">
-          {data?.directions.map((d: CalendarDirectionItem) => (
-            <div
-              key={d.id}
-              className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
-            >
-              {/* Left Column: Date & Department Info */}
-              <div className="space-y-1.5 md:max-w-md">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded bg-slate-100 text-slate-900 border border-slate-200">
-                    Window End: {d.deadline_window_end}
-                  </span>
-                  <span
-                    className="font-mono text-2xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"
-                    onClick={() => onSelectJudgment && onSelectJudgment(d.judgment_id)}
-                  >
-                    {d.case_number || `Judgment #${d.judgment_id}`}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-900">
-                  <span>{d.cleaned_department}</span>
-                  {d.responsible_party !== d.cleaned_department && (
-                    <span className="text-3xs text-slate-400 font-normal truncate max-w-[200px]" title={d.responsible_party}>
-                      ({d.responsible_party})
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-2xs text-slate-600 line-clamp-2 leading-relaxed">
-                  {d.action}
-                </p>
-
-                {d.explanation_text && (
-                  <div className="text-3xs text-slate-400 italic">
-                    {d.explanation_text}
+        <DataTable>
+          <TableHead>
+            <tr>
+              <TableHeaderCell>Window Expiration Date</TableHeaderCell>
+              <TableHeaderCell>Responsible Department &amp; Case</TableHeaderCell>
+              <TableHeaderCell>Operative Direction Mandate</TableHeaderCell>
+              <TableHeaderCell align="center">Compliance Status</TableHeaderCell>
+              <TableHeaderCell align="right">Action</TableHeaderCell>
+            </tr>
+          </TableHead>
+          <tbody>
+            {data.directions.map((dir: CalendarDirectionItem) => (
+              <TableRow key={dir.id}>
+                {/* Date */}
+                <TableCell>
+                  <div className="font-mono font-bold text-xs tabular-nums text-[var(--accent-oxblood)]">
+                    {dir.deadline_window_end}
                   </div>
-                )}
-              </div>
+                  <div className="font-mono text-[10px] text-[var(--ink-muted)]">
+                    window start: {dir.deadline_window_start}
+                  </div>
+                </TableCell>
 
-              {/* Right Column: Status & Navigation */}
-              <div className="flex flex-row md:flex-col items-end justify-between md:justify-center gap-2 shrink-0">
-                <div className="flex items-center gap-1.5">
-                  <StatusBadge status={d.compliance_status} size="sm" />
-                  <FlagBadges flags={d.flags || {}} />
-                </div>
+                {/* Responsible authority */}
+                <TableCell>
+                  <div className="font-serif font-bold text-xs text-[var(--ink-primary)]">
+                    {dir.cleaned_department || dir.responsible_party}
+                  </div>
+                  <div className="font-mono text-[10px] text-[var(--ink-secondary)]">
+                    {dir.case_number}
+                  </div>
+                </TableCell>
 
-                {d.evidence_strength && (
-                  <span className="text-3xs px-2 py-0.5 rounded bg-slate-100 font-mono text-slate-600 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3 text-slate-500" />
-                    {d.evidence_strength}
-                  </span>
-                )}
+                {/* Operative action */}
+                <TableCell>
+                  <div className="font-sans text-xs text-[var(--ink-primary)] leading-snug">
+                    {dir.action}
+                  </div>
+                  {dir.deadline_phrase && (
+                    <div className="font-mono text-[10px] text-[var(--accent-oxblood)] mt-0.5">
+                      phrase: &ldquo;{dir.deadline_phrase}&rdquo;
+                    </div>
+                  )}
+                </TableCell>
 
-                <button
-                  onClick={() => onSelectJudgment && onSelectJudgment(d.judgment_id)}
-                  className="inline-flex items-center gap-1 text-2xs font-semibold text-blue-600 hover:text-blue-800 hover:underline pt-1"
-                >
-                  <span>View Order</span>
-                  <ExternalLink className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+                {/* Status */}
+                <TableCell align="center">
+                  <div className="flex flex-col items-center gap-1">
+                    <StatusBadge status={dir.compliance_status} size="sm" />
+                    {dir.flags && <FlagBadges flags={dir.flags} />}
+                  </div>
+                </TableCell>
+
+                {/* Action Link */}
+                <TableCell align="right">
+                  {onSelectJudgment && dir.judgment_id && (
+                    <button
+                      onClick={() => onSelectJudgment(dir.judgment_id)}
+                      className="font-mono text-[11px] text-[var(--accent-oxblood)] hover:underline inline-flex items-center gap-0.5"
+                    >
+                      Inspect <IconExternalLink size={10} />
+                    </button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </DataTable>
       )}
     </div>
   );
 };
-

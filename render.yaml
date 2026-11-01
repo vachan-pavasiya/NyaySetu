@@ -1,38 +1,35 @@
 services:
   # ============================================================================
-  # 1. Backend API Web Service
+  # 1. Backend API Web Service (Docker + Persistent Disk)
   # ============================================================================
   - type: web
     name: compliance-radar-api
-    runtime: python
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: python scripts/bootstrap.py && uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
+    env: docker
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     disk:
       name: compliance-radar-data
       mountPath: /data
       sizeGB: 1
     envVars:
-      - key: DATABASE_URL
-        value: sqlite:////data/compliance_radar.db
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-flash-lite-latest
+        sync: false
       - key: GEMINI_FALLBACK_MODEL
-        value: gemini-1.5-flash
-      - key: DAILY_GEMINI_BUDGET
-        value: "250"
+        sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: S3_BUCKET
-        value: indian-high-court-judgments
+        sync: false
       - key: AWS_DEFAULT_REGION
-        value: ap-south-1
+        sync: false
       - key: SERVICE_LAG_DAYS
-        value: "30"
+        sync: false
+      - key: DAILY_GEMINI_BUDGET
+        sync: false
       - key: ALLOWED_ORIGINS
-        value: "*"
-      - key: PYTHONPATH
-        value: .
+        sync: false
 
   # ============================================================================
   # 2. Frontend Static Site
@@ -52,4 +49,3 @@ services:
           type: web
           name: compliance-radar-api
           property: host
-

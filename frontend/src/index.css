@@ -1,10 +1,159 @@
 @import "tailwindcss";
 
+:root {
+  /* Warm paper and near-black ink palette */
+  --bg-paper: #F6F2E9;
+  --bg-surface: #FCFAF6;
+  --bg-surface-muted: #EFEAE1;
+  --bg-header: #FAF7F2;
+
+  --ink-primary: #1C1A17;
+  --ink-secondary: #5C5851;
+  --ink-muted: #7D776C;
+
+  --border-rule: #D9D2C3;
+  --border-rule-strong: #8C867B;
+
+  --accent-oxblood: #7A2E2E;
+  --accent-oxblood-subtle: #F4EAE8;
+
+  --highlight-pen: #FBEFB8;
+  --highlight-pen-border: #E8D385;
+  --highlight-pen-text: #1C1A17;
+
+  /* Muted legal stamps */
+  --status-complied: #2F5D3A;
+  --status-complied-bg: #EFF5F0;
+
+  --status-pending: #9A6B12;
+  --status-pending-bg: #FAF4E8;
+
+  --status-unverified: #5B5F66;
+  --status-unverified-bg: #F2F3F4;
+
+  --status-overdue: #8A2E2B;
+  --status-overdue-bg: #FAF0EF;
+}
+
+/* Warm Charcoal Dark Theme */
+.dark, [data-theme="dark"] {
+  --bg-paper: #1A1917;
+  --bg-surface: #22201D;
+  --bg-surface-muted: #2B2925;
+  --bg-header: #201E1B;
+
+  --ink-primary: #E8E4DA;
+  --ink-secondary: #A6A197;
+  --ink-muted: #7A756D;
+
+  --border-rule: #383530;
+  --border-rule-strong: #524E47;
+
+  --accent-oxblood: #C46868;
+  --accent-oxblood-subtle: #382222;
+
+  --highlight-pen: #3E3720;
+  --highlight-pen-border: #6B5E32;
+  --highlight-pen-text: #F4ECCF;
+
+  --status-complied: #5CA16B;
+  --status-complied-bg: #1B281E;
+
+  --status-pending: #D49D38;
+  --status-pending-bg: #2B2316;
+
+  --status-unverified: #9A9FA8;
+  --status-unverified-bg: #242629;
+
+  --status-overdue: #D66864;
+  --status-overdue-bg: #331E1E;
+}
+
+@theme {
+  --font-serif: 'Source Serif 4', 'Newsreader', 'Georgia', 'Cambria', serif;
+  --font-sans: 'Source Sans 3', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+
+  --color-paper: var(--bg-paper);
+  --color-surface: var(--bg-surface);
+  --color-surface-muted: var(--bg-surface-muted);
+  --color-ink: var(--ink-primary);
+  --color-ink-muted: var(--ink-secondary);
+  --color-rule: var(--border-rule);
+  --color-rule-dark: var(--border-rule-strong);
+  --color-oxblood: var(--accent-oxblood);
+}
+
 @layer base {
+  *, *::before, *::after {
+    border-color: var(--border-rule);
+    box-sizing: border-box;
+  }
+
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    background-color: #f8fafc;
-    color: #0f172a;
+    padding: 0;
+    background-color: var(--bg-paper);
+    color: var(--ink-primary);
+    font-family: 'Source Sans 3', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Source Serif 4', 'Newsreader', 'Georgia', serif;
+    font-weight: 600;
+    color: var(--ink-primary);
+    letter-spacing: -0.01em;
+  }
+
+  /* Custom focus rings */
+  :focus-visible {
+    outline: 1.5px solid var(--accent-oxblood);
+    outline-offset: 1.5px;
+  }
+
+  /* Tabular figures for dense financial/legal numbers */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Ledger rule lines */
+  .border-rule {
+    border-color: var(--border-rule);
+  }
+
+  .border-rule-strong {
+    border-color: var(--border-rule-strong);
+  }
+}
+
+/* Print Stylesheet for Law Report & Ledger */
+@media print {
+  nav, header, .no-print, button, .masthead-banner {
+    display: none !important;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .law-report-text {
+    font-size: 11pt !important;
+    line-height: 1.6 !important;
+  }
+
+  .print-page-break {
+    page-break-before: always;
   }
 }

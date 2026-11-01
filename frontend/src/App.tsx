@@ -1,16 +1,4 @@
-import { useState } from 'react';
-import {
-  Scale,
-  LayoutDashboard,
-  FileText,
-  BookOpen,
-  Clock,
-  Calendar,
-  DownloadCloud,
-  FileCheck,
-  AlertCircle,
-  HelpCircle,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { DashboardView } from './components/DashboardView';
 import { LedgerView } from './components/LedgerView';
 import { JudgmentView } from './components/JudgmentView';
@@ -18,11 +6,42 @@ import { TimelineView } from './components/TimelineView';
 import { CalendarView } from './components/CalendarView';
 import { IngestView } from './components/IngestView';
 import { EvalView } from './components/EvalView';
+import { DiagnosticsView } from './components/DiagnosticsView';
+import { NotFoundView } from './components/NotFoundView';
+import { Logo } from './components/primitives/Logo';
 
-type Tab = 'dashboard' | 'ledger' | 'judgments' | 'timeline' | 'calendar' | 'ingest' | 'eval';
+type Tab =
+  | 'dashboard'
+  | 'ledger'
+  | 'judgments'
+  | 'timeline'
+  | 'calendar'
+  | 'ingest'
+  | 'eval'
+  | 'diagnostics'
+  | '404';
+
+interface NavItem {
+  id: Tab;
+  label: string;
+  section: string;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: 'Principal Register', section: 'REGISTERS' },
+  { id: 'ledger', label: 'Compliance Ledger', section: 'REGISTERS' },
+  { id: 'judgments', label: 'Law Report & Judgments', section: 'PROCEEDINGS' },
+  { id: 'timeline', label: 'Case Progression', section: 'PROCEEDINGS' },
+  { id: 'calendar', label: 'Deadline Calendar', section: 'PROCEEDINGS' },
+  { id: 'ingest', label: 'Data Pipeline & Ingest', section: 'DATA SYSTEM' },
+  { id: 'eval', label: 'Evaluation Benchmarks', section: 'DATA SYSTEM' },
+  { id: 'diagnostics', label: 'System Diagnostics', section: 'DATA SYSTEM' },
+];
 
 export function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
+  const [isDark, setIsDark] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Cross-tab navigation state
   const [ledgerDepartment, setLedgerDepartment] = useState<string | undefined>(undefined);
@@ -32,233 +51,270 @@ export function App() {
   // Global "Why UNVERIFIED?" modal state
   const [showUnverifiedModal, setShowUnverifiedModal] = useState<boolean>(false);
 
+  // Synchronize document theme class
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.removeAttribute('data-theme');
+    }
+  }, [isDark]);
+
+  // Synchronize page titles
+  useEffect(() => {
+    const titles: Record<Tab, string> = {
+      dashboard: 'NyaySetu — Principal Register of Compliance',
+      ledger: 'NyaySetu — Compliance Ledger',
+      judgments: 'NyaySetu — Law Report & Judgments',
+      timeline: 'NyaySetu — Case Timeline Progression',
+      calendar: 'NyaySetu — Compliance Deadline Calendar',
+      ingest: 'NyaySetu — Data Pipeline & Ingestion',
+      eval: 'NyaySetu — Evaluation Benchmarks',
+      diagnostics: 'NyaySetu — System Diagnostics',
+      '404': 'NyaySetu — Record Not Found',
+    };
+    document.title = titles[activeTab] || 'NyaySetu — Court-Order Compliance Radar';
+  }, [activeTab]);
+
   // Handlers for cross-tab linking
   const handleSelectDepartmentFromDashboard = (dept: string) => {
     setLedgerDepartment(dept);
     setActiveTab('ledger');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSelectJudgment = (judgmentId: number) => {
     setSelectedJudgmentId(judgmentId);
     setActiveTab('judgments');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSelectCaseFromLedger = (caseNumber: string) => {
     setSelectedCaseNumber(caseNumber);
     setActiveTab('timeline');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      {/* Top Header & Navigation */}
-      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-sm shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
-            <div
-              className="flex items-center gap-3 cursor-pointer"
-              onClick={() => setActiveTab('dashboard')}
-            >
-              <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-900 text-white shadow-xs">
-                <Scale className="w-5 h-5 text-emerald-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-base tracking-tight text-slate-900">NyaySetu</span>
-                  <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    Live Radar
-                  </span>
-                </div>
-                <div className="text-2xs text-slate-500 font-medium">Court-Order Compliance Radar</div>
-              </div>
+    <div className="min-h-screen bg-[var(--bg-paper)] text-[var(--ink-primary)] flex flex-col font-sans transition-colors duration-150">
+      {/* Top Gazette Notice Strip */}
+      <aside
+        aria-label="Official Legal Information Notice"
+        className="masthead-banner border-b border-[var(--border-rule-strong)] bg-[var(--bg-surface-muted)] text-[var(--ink-secondary)] text-[11px] font-mono py-1 px-4 text-center select-none flex items-center justify-center gap-2 flex-wrap"
+      >
+        <span>
+          <strong>Gazette Notice:</strong> Legal information, not legal advice. Operative records derived from official High Court open data (AWS CC-BY-4.0).
+        </span>
+        <button
+          onClick={() => setShowUnverifiedModal(true)}
+          className="text-[var(--accent-oxblood)] font-bold underline hover:opacity-80 transition-opacity ml-1"
+        >
+          Why UNVERIFIED?
+        </button>
+      </aside>
+
+      {/* Masthead Header Bar */}
+      <header className="border-b border-[var(--border-rule)] bg-[var(--bg-surface)] sticky top-0 z-30">
+        <div className="w-full px-4 sm:px-6 py-2.5 flex items-center justify-between">
+          {/* Logo & Gazette Title */}
+          <div
+            className="cursor-pointer"
+            onClick={() => {
+              setActiveTab('dashboard');
+              setMobileMenuOpen(false);
+            }}
+          >
+            <Logo size="md" />
+          </div>
+
+          {/* Right Toolbar: Jurisdiction & Theme Toggle */}
+          <div className="flex items-center gap-3">
+            <div className="hidden lg:flex flex-col text-right font-mono text-[10px] text-[var(--ink-secondary)]">
+              <span className="font-semibold text-[var(--ink-primary)]">Calcutta High Court</span>
+              <span>Appellate Side · 2023 Records</span>
             </div>
 
-            {/* Navigation Tabs */}
-            <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto">
-              <button
-                onClick={() => setActiveTab('dashboard')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  activeTab === 'dashboard'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                <span>Dashboard</span>
-              </button>
+            <div className="h-5 w-[1px] bg-[var(--border-rule)] hidden lg:block" />
 
-              <button
-                onClick={() => {
-                  setLedgerDepartment(undefined);
-                  setActiveTab('ledger');
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  activeTab === 'ledger'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Compliance Ledger</span>
-              </button>
+            {/* Dark / Light Toggle in Warm Charcoal */}
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className="font-mono text-[11px] uppercase tracking-wider px-2 py-1 border border-[var(--border-rule-strong)] rounded-[2px] hover:bg-[var(--bg-surface-muted)] transition-colors"
+              title="Toggle reading theme between paper and warm charcoal"
+            >
+              {isDark ? 'Paper (Light)' : 'Charcoal (Dark)'}
+            </button>
 
-              <button
-                onClick={() => setActiveTab('judgments')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  activeTab === 'judgments'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>Judgment Verification</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('timeline')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  activeTab === 'timeline'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>Case Timeline</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('calendar')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  activeTab === 'calendar'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Calendar className="w-3.5 h-3.5" />
-                <span>Calendar</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('ingest')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  activeTab === 'ingest'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <DownloadCloud className="w-3.5 h-3.5" />
-                <span>Live Pipeline</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('eval')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
-                  activeTab === 'eval'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <FileCheck className="w-3.5 h-3.5" />
-                <span>Eval Harness</span>
-              </button>
-            </nav>
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden font-mono text-xs px-2.5 py-1 border border-[var(--border-rule-strong)] rounded-[2px]"
+            >
+              {mobileMenuOpen ? 'Close' : 'Menu'}
+            </button>
           </div>
         </div>
 
-        {/* Legal Guardrail Banner (per AGENTS.md requirement) */}
-        <div className="bg-amber-50/90 border-t border-b border-amber-200/80 px-4 py-1 text-center text-3xs font-medium text-amber-900 flex items-center justify-center gap-2">
-          <AlertCircle className="w-3 h-3 text-amber-700 shrink-0" />
-          <span>
-            <strong>Legal Information, Not Legal Advice.</strong> All records are derived from official High Court open data (AWS CC-BY-4.0). Statuses require verified verbatim quotes.
-          </span>
-          <button
-            onClick={() => setShowUnverifiedModal(true)}
-            className="inline-flex items-center gap-0.5 text-amber-950 font-bold underline hover:text-amber-800 ml-2"
-          >
-            <HelpCircle className="w-2.5 h-2.5" />
-            <span>Why UNVERIFIED?</span>
-          </button>
-        </div>
+        {/* Mobile Navigation Dropdown (<768px) */}
+        {mobileMenuOpen && (
+          <nav className="md:hidden border-t border-[var(--border-rule)] bg-[var(--bg-surface)] p-2 grid grid-cols-2 gap-1 font-mono text-xs">
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setMobileMenuOpen(false);
+                }}
+                className={`text-left px-2 py-1.5 border border-transparent rounded-[2px] ${
+                  activeTab === item.id
+                    ? 'border-[var(--accent-oxblood)] bg-[var(--bg-surface-muted)] text-[var(--accent-oxblood)] font-bold'
+                    : 'text-[var(--ink-secondary)] hover:bg-[var(--bg-surface-muted)]'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            onSelectDepartment={handleSelectDepartmentFromDashboard}
-            onSelectJudgment={handleSelectJudgment}
-          />
-        )}
+      {/* Main Structural Frame: Fixed Left Rail + Editorial Content Area */}
+      <div className="flex-1 flex flex-col md:flex-row w-full">
+        {/* Fixed Left Rail Navigation (Desktop) */}
+        <aside
+          aria-label="Publication Navigation"
+          className="hidden md:block w-56 shrink-0 border-r border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 select-none min-h-[calc(100vh-80px)]"
+        >
+          <div className="sticky top-16 space-y-6">
+            {['REGISTERS', 'PROCEEDINGS', 'DATA SYSTEM'].map((sectionName) => (
+              <div key={sectionName} className="space-y-1.5">
+                <div className="font-mono text-[9px] uppercase tracking-widest text-[var(--ink-muted)] font-semibold px-2">
+                  {sectionName}
+                </div>
+                <div className="space-y-0.5">
+                  {NAV_ITEMS.filter((item) => item.section === sectionName).map((item) => {
+                    const isActive = activeTab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          if (item.id === 'ledger') setLedgerDepartment(undefined);
+                          setActiveTab(item.id);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 font-sans text-xs transition-colors rounded-[2px] block ${
+                          isActive
+                            ? 'border-l-2 border-[var(--accent-oxblood)] bg-[var(--bg-surface-muted)] text-[var(--accent-oxblood)] font-bold'
+                            : 'text-[var(--ink-secondary)] hover:text-[var(--ink-primary)] hover:bg-[var(--bg-surface-muted)]'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
 
-        {activeTab === 'ledger' && (
-          <LedgerView
-            initialDepartment={ledgerDepartment}
-            onSelectJudgment={handleSelectJudgment}
-            onSelectCase={handleSelectCaseFromLedger}
-          />
-        )}
+            <div className="pt-6 border-t border-[var(--border-rule)] font-mono text-[10px] text-[var(--ink-muted)] space-y-1">
+              <div>AWS S3: indian-high-court-judgments</div>
+              <div>License: CC-BY-4.0 Public</div>
+            </div>
+          </div>
+        </aside>
 
-        {activeTab === 'judgments' && (
-          <JudgmentView initialJudgmentId={selectedJudgmentId} />
-        )}
+        {/* Editorial Content Canvas */}
+        <main className="flex-1 w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              onSelectDepartment={handleSelectDepartmentFromDashboard}
+              onSelectJudgment={handleSelectJudgment}
+            />
+          )}
 
-        {activeTab === 'timeline' && (
-          <TimelineView
-            initialCaseNumber={selectedCaseNumber}
-            onSelectJudgment={handleSelectJudgment}
-          />
-        )}
+          {activeTab === 'ledger' && (
+            <LedgerView
+              initialDepartment={ledgerDepartment}
+              onSelectJudgment={handleSelectJudgment}
+              onSelectCase={handleSelectCaseFromLedger}
+            />
+          )}
 
-        {activeTab === 'calendar' && (
-          <CalendarView onSelectJudgment={handleSelectJudgment} />
-        )}
+          {activeTab === 'judgments' && (
+            <JudgmentView initialJudgmentId={selectedJudgmentId} />
+          )}
 
-        {activeTab === 'ingest' && <IngestView />}
+          {activeTab === 'timeline' && (
+            <TimelineView
+              initialCaseNumber={selectedCaseNumber}
+              onSelectJudgment={handleSelectJudgment}
+            />
+          )}
 
-        {activeTab === 'eval' && <EvalView />}
-      </main>
+          {activeTab === 'calendar' && (
+            <CalendarView onSelectJudgment={handleSelectJudgment} />
+          )}
+
+          {activeTab === 'ingest' && <IngestView />}
+
+          {activeTab === 'eval' && <EvalView />}
+
+          {activeTab === 'diagnostics' && <DiagnosticsView />}
+
+          {activeTab === '404' && (
+            <NotFoundView onReturnToDashboard={() => setActiveTab('dashboard')} />
+          )}
+        </main>
+      </div>
 
       {/* Global "Why UNVERIFIED?" Modal */}
       {showUnverifiedModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-slate-700" />
-                <h3 className="font-bold text-sm text-slate-900">Why are most orders marked UNVERIFIED?</h3>
-              </div>
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+        >
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-rule-strong)] max-w-lg w-full p-5 space-y-3 rounded-[2px]">
+            <div className="flex items-baseline justify-between border-b border-[var(--border-rule)] pb-2">
+              <h2 className="font-serif font-bold text-base text-[var(--ink-primary)]">
+                The Ground-Truth Standard: Why UNVERIFIED?
+              </h2>
               <button
                 onClick={() => setShowUnverifiedModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-mono font-bold"
+                className="font-mono text-xs text-[var(--ink-muted)] hover:text-[var(--ink-primary)] font-bold"
               >
-                ✕
+                [X]
               </button>
             </div>
 
-            <div className="space-y-3 text-xs text-slate-700 leading-relaxed">
-              <p>
-                In strict compliance with our legal guardrails, <strong>NyaySetu never infers compliance from silence</strong>.
+            <div className="space-y-2.5 font-sans text-xs text-[var(--ink-secondary)] leading-relaxed">
+              <p className="font-semibold text-[var(--ink-primary)]">
+                UNVERIFIED means we found no public record either way. It does not mean the order was ignored.
               </p>
-              <ul className="list-disc pl-5 space-y-1.5 text-2xs text-slate-600">
+              <p>
+                In strict compliance with our legal guardrails, <strong>NyaySetu never infers compliance from silence</strong>. High Court registries do not automatically link post-judgment department actions back into the initial order docket.
+              </p>
+              <ul className="list-disc pl-5 space-y-1.5 text-[11px]">
                 <li>
-                  <strong className="text-slate-900">COMPLIED</strong> is assigned <em>only</em> when a linked subsequent court order contains a verbatim, verified quote confirming compliance.
+                  <strong className="text-[var(--ink-primary)]">COMPLIED</strong> is assigned <em>only</em> when a linked subsequent order contains a verified, verbatim judicial quote confirming execution.
                 </li>
                 <li>
-                  <strong className="text-slate-900">PENDING</strong> is assigned when the deterministic deadline window remains open, or a later order shows an ongoing process (e.g. extension sought, compliance report awaited).
+                  <strong className="text-[var(--ink-primary)]">PENDING</strong> is assigned when the deterministic deadline window remains open, or a subsequent order records an ongoing administrative step (e.g. extension sought, compliance report awaited).
                 </li>
                 <li>
-                  <strong className="text-slate-900">UNVERIFIED</strong> indicates that the public repository does not contain subsequent proceedings for that case. If the deadline window has elapsed without record, the secondary flag <span className="font-mono text-3xs font-semibold bg-rose-50 text-rose-800 px-1 py-0.5 rounded">OVERDUE_NO_RECORD</span> is attached.
+                  <strong className="text-[var(--ink-primary)]">UNVERIFIED</strong> indicates absence of subsequent public proceedings. If the deadline window has elapsed without record, the flag <code className="font-mono text-[10px] text-[var(--status-overdue)]">OVERDUE_NO_RECORD</code> is attached.
                 </li>
               </ul>
-              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-3xs font-mono text-slate-600">
-                Rule: UNVERIFIED means absence of subsequent public court orders, NOT non-compliance.
+              <div className="border border-[var(--border-rule)] bg-[var(--bg-paper)] p-2.5 font-mono text-[10px] text-[var(--ink-muted)]">
+                Rule: Legal information, not legal advice. Everything is derived from official open records.
               </div>
             </div>
 
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setShowUnverifiedModal(false)}
-                className="px-4 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors"
+                className="font-mono text-xs uppercase tracking-wider font-semibold px-4 py-1.5 border border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-oxblood)] hover:border-[var(--accent-oxblood)] transition-colors rounded-[2px]"
               >
                 Understood
               </button>
@@ -267,14 +323,14 @@ export function App() {
         </div>
       )}
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-4 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-2xs text-slate-500">
+      {/* Gazette Footer */}
+      <footer className="border-t border-[var(--border-rule)] bg-[var(--bg-surface)] py-3 select-none no-print">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 font-mono text-[10px] text-[var(--ink-muted)]">
           <div>
-            NyaySetu: Court-Order Compliance Radar • Live Open Data (AWS Indian High Court Judgments)
+            NyaySetu: Court-Order Compliance Radar · AWS Open Data (CC-BY-4.0)
           </div>
-          <div className="font-mono text-3xs text-slate-400">
-            Headline Statuses: COMPLIED • PENDING • UNVERIFIED
+          <div>
+            Headline Standards: COMPLIED · PENDING · UNVERIFIED
           </div>
         </div>
       </footer>

@@ -1,7 +1,7 @@
 /**
  * Application Configuration & API URL Helper
  * Reads VITE_API_URL from environment variables for production deployments.
- * Eliminates any hardcoded localhost or port references.
+ * Configures dynamic API URL resolution without hardcoded domains.
  */
 
 const rawApiUrl = import.meta.env.VITE_API_URL;

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DownloadCloud, Play, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Sparkles } from 'lucide-react';
 import type { IngestJobResponse, BatchAnalyzeResponse, JudgmentSummary } from '../types';
 import { getApiUrl } from '../config';
+import { PageHeader } from './primitives/PageHeader';
+import { DataTable, TableHead, TableRow, TableHeaderCell, TableCell } from './primitives/DataTable';
+import { IconRefresh } from './primitives/Icon';
 
 export const IngestView: React.FC = () => {
   // Ingest form state
@@ -32,11 +34,10 @@ export const IngestView: React.FC = () => {
     { value: 'bombay', label: 'Bombay High Court' },
   ];
 
-  // Fetch recent judgments to inspect live failures & successes
   const fetchRecentDocs = async () => {
     setLoadingDocs(true);
     try {
-      const res = await fetch(getApiUrl('/judgments?limit=15&offset=0'));
+      const res = await fetch(getApiUrl('/judgments?limit=20&offset=0'));
       if (res.ok) {
         const data = await res.json();
         setRecentDocs(data.items || []);
@@ -55,7 +56,6 @@ export const IngestView: React.FC = () => {
     };
   }, []);
 
-  // Poll Ingestion Job status
   const startPolling = (jobId: string) => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
@@ -78,7 +78,6 @@ export const IngestView: React.FC = () => {
     }, 1500);
   };
 
-  // Trigger Ingestion
   const handleStartIngest = async (e: React.FormEvent) => {
     e.preventDefault();
     setJobError(null);
@@ -101,15 +100,14 @@ export const IngestView: React.FC = () => {
       setActiveJob(job);
       startPolling(job.job_id);
     } catch (err: any) {
-      setJobError(err.message || 'Failed to trigger ingestion job');
+      setJobError(err.message || 'Ingestion request failed');
       setIsIngesting(false);
     }
   };
 
-  // Trigger Batch Analysis
   const handleStartAnalysis = async () => {
-    setIsAnalyzing(true);
     setAnalyzeError(null);
+    setIsAnalyzing(true);
     setAnalyzeResult(null);
 
     try {
@@ -128,40 +126,43 @@ export const IngestView: React.FC = () => {
       setAnalyzeResult(result);
       fetchRecentDocs();
     } catch (err: any) {
-      setAnalyzeError(err.message || 'Failed to run batch analysis');
+      setAnalyzeError(err.message || 'Batch analysis failed');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Page Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-          Live Data Ingestion & Agentic Analysis Pipeline
-        </h2>
-        <p className="text-xs text-slate-500 mt-1">
-          Trigger real ingestion directly from the AWS Open Data bucket (CC-BY-4.0, unsigned S3) into SQLite, run text extraction, and analyze directions with Gemini.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        volumeOrMeta="AWS Open Data Registry Pipeline · S3 indian-high-court-judgments"
+        title="Judgment Ingestion &amp; Operative Direction Extraction"
+        deck="Pulls real High Court judgments from AWS Open Data (CC-BY-4.0). Digital vector text is extracted via PyMuPDF with per-document quality checks."
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card 1: Ingest Form */}
-        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <DownloadCloud className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-slate-900">1. Ingest Real Court Orders</h3>
+      {/* Two-Column Control Panel */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Stage 1: Ingestion Form */}
+        <div className="border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 space-y-4">
+          <div className="border-b border-[var(--border-rule)] pb-2">
+            <h2 className="font-serif font-bold text-base text-[var(--ink-primary)]">
+              1. Ingest Judgments from AWS Open Data
+            </h2>
+            <p className="font-sans text-xs text-[var(--ink-secondary)] mt-0.5">
+              Connects directly to the public unsigned S3 bucket without credentials.
+            </p>
           </div>
 
-          <form onSubmit={handleStartIngest} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-2xs font-bold uppercase tracking-wider text-slate-500">Court</label>
+          <form onSubmit={handleStartIngest} className="space-y-3 font-sans text-xs">
+            <div>
+              <label className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-muted)] block mb-1 font-semibold">
+                High Court Jurisdiction
+              </label>
               <select
                 value={court}
                 onChange={(e) => setCourt(e.target.value)}
                 disabled={isIngesting}
-                className="w-full text-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full px-2.5 py-1.5 font-mono text-xs border border-[var(--border-rule-strong)] bg-[var(--bg-paper)] text-[var(--ink-primary)] rounded-[2px]"
               >
                 {courtsList.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -172,315 +173,241 @@ export const IngestView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-2xs font-bold uppercase tracking-wider text-slate-500">Year</label>
-                <select
+              <div>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-muted)] block mb-1 font-semibold">
+                  Judicial Year
+                </label>
+                <input
+                  type="number"
+                  min={2000}
+                  max={2026}
                   value={year}
                   onChange={(e) => setYear(Number(e.target.value))}
                   disabled={isIngesting}
-                  className="w-full text-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-                >
-                  <option value={2024}>2024</option>
-                  <option value={2023}>2023</option>
-                  <option value={2022}>2022</option>
-                  <option value={2021}>2021</option>
-                  <option value={2020}>2020</option>
-                </select>
+                  className="w-full px-2.5 py-1.5 font-mono text-xs border border-[var(--border-rule-strong)] bg-[var(--bg-paper)] text-[var(--ink-primary)] rounded-[2px]"
+                />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-2xs font-bold uppercase tracking-wider text-slate-500">
-                  Limit (Docs)
+              <div>
+                <label className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-muted)] block mb-1 font-semibold">
+                  Batch Size (Max 20)
                 </label>
                 <input
                   type="number"
                   min={1}
-                  max={100}
+                  max={20}
                   value={limit}
                   onChange={(e) => setLimit(Number(e.target.value))}
                   disabled={isIngesting}
-                  className="w-full text-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="w-full px-2.5 py-1.5 font-mono text-xs border border-[var(--border-rule-strong)] bg-[var(--bg-paper)] text-[var(--ink-primary)] rounded-[2px]"
                 />
               </div>
             </div>
 
+            {/* Thin progress rule during ingestion */}
+            {isIngesting && (
+              <div className="space-y-1 pt-1">
+                <div className="h-[2px] w-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                  <div className="h-full bg-[var(--accent-oxblood)] animate-pulse w-2/3" />
+                </div>
+                <div className="font-mono text-[10px] text-[var(--ink-secondary)]">
+                  Retrieving orders from S3 bucket...
+                </div>
+              </div>
+            )}
+
+            {jobError && (
+              <div className="p-2 border border-[var(--status-overdue)] bg-[var(--status-overdue-bg)] text-[var(--status-overdue)] text-xs">
+                <strong>Ingestion Error:</strong> {jobError}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={isIngesting}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold text-white transition-all shadow-xs ${
-                isIngesting
-                  ? 'bg-slate-400 cursor-not-allowed'
-                  : 'bg-slate-900 hover:bg-slate-800'
-              }`}
+              className="w-full font-mono text-xs uppercase tracking-wider font-semibold py-2 border border-[var(--accent-oxblood)] bg-[var(--accent-oxblood)] text-white hover:opacity-90 disabled:opacity-50 rounded-[2px]"
             >
-              {isIngesting ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Ingesting Real Orders from AWS...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Start Live Ingestion</span>
-                </>
-              )}
+              {isIngesting ? 'Ingesting from S3...' : 'Start S3 Ingestion Job'}
             </button>
           </form>
 
-          {jobError && (
-            <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-2xs text-rose-700">
-              {jobError}
-            </div>
-          )}
-
-          {/* Live Progress Card */}
+          {/* Active Job Status */}
           {activeJob && (
-            <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 space-y-3 mt-4">
+            <div className="border border-[var(--border-rule)] bg-[var(--bg-paper)] p-3 space-y-1.5 font-mono text-xs">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-2xs font-semibold text-slate-700">
-                  Job: {activeJob.job_id.slice(0, 8)}...
-                </span>
-                <span
-                  className={`text-3xs font-bold px-2 py-0.5 rounded font-mono ${
-                    activeJob.status === 'COMPLETED'
-                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                      : activeJob.status === 'RUNNING'
-                      ? 'bg-blue-100 text-blue-800 animate-pulse'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}
-                >
+                <span className="font-bold text-[var(--ink-primary)]">Job #{activeJob.job_id.slice(0, 8)}</span>
+                <span className="uppercase text-[10px] text-[var(--accent-oxblood)] font-semibold">
                   {activeJob.status}
                 </span>
               </div>
-
-              {/* Progress bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-3xs font-medium text-slate-600">
-                  <span>Processed: {activeJob.processed} / {activeJob.total || activeJob.limit}</span>
-                  <span>
-                    {activeJob.total > 0
-                      ? `${Math.round((activeJob.processed / activeJob.total) * 100)}%`
-                      : '0%'}
-                  </span>
-                </div>
-                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${
-                        activeJob.total > 0
-                          ? Math.min(100, Math.round((activeJob.processed / activeJob.total) * 100))
-                          : 0
-                      }%`,
-                    }}
-                  />
-                </div>
+              <div className="text-[11px] text-[var(--ink-secondary)]">
+                Orders: {activeJob.succeeded || 0} succeeded · {activeJob.failed || 0} unreadable / failed
               </div>
-
-              {/* Counts Breakdown */}
-              <div className="grid grid-cols-3 gap-2 text-center text-2xs pt-1">
-                <div className="bg-white p-2 rounded border border-slate-200">
-                  <span className="text-slate-400 block text-3xs">Succeeded</span>
-                  <span className="font-bold text-emerald-700 font-mono">{activeJob.succeeded}</span>
-                </div>
-                <div className="bg-white p-2 rounded border border-slate-200">
-                  <span className="text-slate-400 block text-3xs">Failed / Unreadable</span>
-                  <span className="font-bold text-rose-700 font-mono">{activeJob.failed}</span>
-                </div>
-                <div className="bg-white p-2 rounded border border-slate-200">
-                  <span className="text-slate-400 block text-3xs">Avg Sec/Doc</span>
-                  <span className="font-bold text-slate-800 font-mono">
-                    {activeJob.avg_seconds_per_doc ? activeJob.avg_seconds_per_doc.toFixed(2) : '-'}s
-                  </span>
-                </div>
-              </div>
-
-              {/* Failure Breakdown if any */}
-              {activeJob.error_summary && Object.keys(activeJob.error_summary).length > 0 && (
-                <div className="pt-2 border-t border-slate-200 space-y-1">
-                  <div className="text-3xs font-semibold text-rose-800 uppercase tracking-wider flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3 text-rose-600" />
-                    Failures with Reasons:
-                  </div>
-                  {Object.entries(activeJob.error_summary).map(([reason, cnt]) => (
-                    <div key={reason} className="text-3xs text-slate-600 flex justify-between bg-white px-2 py-1 rounded border border-slate-200">
-                      <span className="truncate max-w-[200px]">{reason}</span>
-                      <span className="font-mono font-bold text-rose-700">{cnt}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        {/* Card 2: Batch Analysis Runner */}
-        <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            <h3 className="text-sm font-bold text-slate-900">2. Agentic Extraction & Verification</h3>
+        {/* Stage 2: Batch Analysis Control */}
+        <div className="border border-[var(--border-rule)] bg-[var(--bg-surface)] p-4 space-y-4">
+          <div className="border-b border-[var(--border-rule)] pb-2">
+            <h2 className="font-serif font-bold text-base text-[var(--ink-primary)]">
+              2. Extract Operative Directions &amp; Deadlines
+            </h2>
+            <p className="font-sans text-xs text-[var(--ink-secondary)] mt-0.5">
+              Segments operative text, extracts responsible parties, and verifies verbatim source quotes.
+            </p>
           </div>
 
-          <p className="text-2xs text-slate-600 leading-relaxed">
-            Segments operative sections of ingested orders, extracts directions with Gemini structured outputs, verifies verbatim source quotes, and computes deterministic deadline windows.
-          </p>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-2xs font-bold uppercase tracking-wider text-slate-500">
-                Batch Size (Unanalyzed Judgments)
+          <div className="space-y-3 font-sans text-xs">
+            <div>
+              <label className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-muted)] block mb-1 font-semibold">
+                Orders to Analyze in Batch
               </label>
               <input
                 type="number"
                 min={1}
-                max={50}
+                max={20}
                 value={analyzeLimit}
                 onChange={(e) => setAnalyzeLimit(Number(e.target.value))}
                 disabled={isAnalyzing}
-                className="w-full text-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full px-2.5 py-1.5 font-mono text-xs border border-[var(--border-rule-strong)] bg-[var(--bg-paper)] text-[var(--ink-primary)] rounded-[2px]"
               />
             </div>
+
+            <div className="border border-[var(--border-rule)] bg-[var(--bg-paper)] p-3 space-y-1 font-sans text-xs text-[var(--ink-secondary)]">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--ink-muted)] font-semibold">
+                Autonomous Verification Loop
+              </div>
+              <p className="leading-normal">
+                Directions are checked by a deterministic verifier. Source quotes must be verbatim substrings of the judgment text. Deadline windows are calculated via deterministic Python arithmetic.
+              </p>
+            </div>
+
+            {/* Thin progress rule during analysis */}
+            {isAnalyzing && (
+              <div className="space-y-1 pt-1">
+                <div className="h-[2px] w-full bg-[var(--bg-surface-muted)] overflow-hidden">
+                  <div className="h-full bg-[var(--ink-primary)] animate-pulse w-3/4" />
+                </div>
+                <div className="font-mono text-[10px] text-[var(--ink-secondary)]">
+                  Segmenting orders, extracting directions, verifying quotes...
+                </div>
+              </div>
+            )}
+
+            {analyzeError && (
+              <div className="p-2 border border-[var(--status-overdue)] bg-[var(--status-overdue-bg)] text-[var(--status-overdue)] text-xs">
+                <strong>Analysis Error:</strong> {analyzeError}
+              </div>
+            )}
 
             <button
               onClick={handleStartAnalysis}
               disabled={isAnalyzing}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-semibold text-white transition-all shadow-xs ${
-                isAnalyzing
-                  ? 'bg-purple-300 cursor-not-allowed'
-                  : 'bg-purple-900 hover:bg-purple-800'
-              }`}
+              className="w-full font-mono text-xs uppercase tracking-wider font-semibold py-2 border border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--bg-paper)] hover:bg-[var(--accent-oxblood)] hover:border-[var(--accent-oxblood)] transition-colors disabled:opacity-50 rounded-[2px]"
             >
-              {isAnalyzing ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Running LLM State Loop & Verifier...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Run Agentic Analysis Batch</span>
-                </>
-              )}
+              {isAnalyzing ? 'Analyzing Judgments...' : 'Run Operative Extraction Batch'}
             </button>
+
+            {/* Batch Analysis Result Summary */}
+            {analyzeResult && (
+              <div className="border border-[var(--border-rule)] bg-[var(--bg-paper)] p-3 space-y-1 font-mono text-xs">
+                <div className="font-bold text-[var(--ink-primary)]">
+                  Batch Complete: {analyzeResult.total_judgments} orders analyzed
+                </div>
+                <div className="text-[11px] text-[var(--status-complied)] font-semibold">
+                  +{analyzeResult.total_directions} operative directions extracted
+                </div>
+              </div>
+            )}
           </div>
-
-          {analyzeError && (
-            <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-2xs text-rose-700">
-              {analyzeError}
-            </div>
-          )}
-
-          {analyzeResult && (
-            <div className="rounded-lg bg-purple-50/60 border border-purple-200 p-4 space-y-3">
-              <div className="flex items-center justify-between text-2xs font-semibold text-purple-900">
-                <span>Batch Analysis Completed</span>
-                <span className="font-mono text-3xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
-                  {analyzeResult.average_latency_seconds}s avg latency
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-2xs">
-                <div className="bg-white p-2 rounded border border-purple-100">
-                  <span className="text-slate-400 block text-3xs">Orders</span>
-                  <span className="font-bold text-slate-800 font-mono">{analyzeResult.total_judgments}</span>
-                </div>
-                <div className="bg-white p-2 rounded border border-purple-100">
-                  <span className="text-slate-400 block text-3xs">With Directions</span>
-                  <span className="font-bold text-purple-900 font-mono">{analyzeResult.judgments_with_directions}</span>
-                </div>
-                <div className="bg-white p-2 rounded border border-purple-100">
-                  <span className="text-slate-400 block text-3xs">Total Directions</span>
-                  <span className="font-bold text-slate-800 font-mono">{analyzeResult.total_directions}</span>
-                </div>
-                <div className="bg-white p-2 rounded border border-purple-100">
-                  <span className="text-slate-400 block text-3xs">1st-Try Verified</span>
-                  <span className="font-bold text-emerald-700 font-mono">{analyzeResult.verified_first_try_pct}%</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Real Ingested Judgments & Failure Reasons */}
-      <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">Real Dataset Records (Live SQLite Inspection)</h3>
-            <p className="text-2xs text-slate-500">
-              Each document preserves real extraction status, text quality score, and verified failure reasons.
-            </p>
-          </div>
+      {/* Recent Ingested Documents & Document Quality Table */}
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-serif font-bold text-base text-[var(--ink-primary)]">
+            Recent Judgment Ingestions &amp; Document Quality
+          </h2>
           <button
             onClick={fetchRecentDocs}
-            className="text-slate-400 hover:text-slate-600 p-1.5 rounded hover:bg-slate-100"
-            title="Refresh"
+            disabled={loadingDocs}
+            className="font-mono text-xs text-[var(--accent-oxblood)] hover:underline inline-flex items-center gap-1"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loadingDocs ? 'animate-spin' : ''}`} />
+            <IconRefresh size={11} className={loadingDocs ? 'animate-spin' : ''} />
+            <span>Refresh Table</span>
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100 text-left text-xs">
-            <thead className="bg-slate-50 font-mono text-2xs uppercase tracking-wider text-slate-500">
-              <tr>
-                <th className="py-2.5 px-3">Case Number</th>
-                <th className="py-2.5 px-3">Date</th>
-                <th className="py-2.5 px-3">Court</th>
-                <th className="py-2.5 px-3">Text Quality</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3">Reason / Error</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-mono text-2xs">
-              {recentDocs.map((doc) => {
-                const isFail = doc.status.includes('FAIL');
-                const isAnalysed = doc.status === 'ANALYZED';
+        <DataTable>
+          <TableHead>
+            <tr>
+              <TableHeaderCell>Case Reference</TableHeaderCell>
+              <TableHeaderCell>Judicial Year</TableHeaderCell>
+              <TableHeaderCell>Parties (Title)</TableHeaderCell>
+              <TableHeaderCell align="center">Vector Text Quality</TableHeaderCell>
+              <TableHeaderCell align="right">Pipeline Status &amp; Failure Reason</TableHeaderCell>
+            </tr>
+          </TableHead>
+          <tbody>
+            {recentDocs.length === 0 ? (
+              <TableRow>
+                <TableCell className="text-center italic" align="center">
+                  No judgments ingested yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              recentDocs.map((doc) => {
+                const isFailed = doc.status.includes('FAIL');
+                const isAnalyzed = doc.status === 'ANALYZED';
 
                 return (
-                  <tr key={doc.id} className="hover:bg-slate-50/80">
-                    <td className="py-2.5 px-3 font-semibold text-slate-900">{doc.case_number}</td>
-                    <td className="py-2.5 px-3 text-slate-600">{doc.judgment_date || '-'}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{doc.court}</td>
-                    <td className="py-2.5 px-3">
-                      {doc.text_quality !== undefined && doc.text_quality !== null ? (
+                  <TableRow key={doc.id}>
+                    <TableCell>
+                      <span className="font-mono font-bold text-xs text-[var(--ink-primary)]">
+                        {doc.case_number}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs tabular-nums">
+                      {doc.year}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-serif text-xs text-[var(--ink-secondary)] truncate max-w-sm">
+                        {doc.petitioner || 'Petitioner'} v. {doc.respondent || 'State of West Bengal'}
+                      </div>
+                    </TableCell>
+                    <TableCell align="center">
+                      <span className="font-mono text-xs tabular-nums">
+                        {doc.text_quality !== undefined ? `${(doc.text_quality * 100).toFixed(0)}%` : '—'}
+                      </span>
+                    </TableCell>
+                    <TableCell align="right">
+                      <div className="flex flex-col items-end gap-0.5">
                         <span
-                          className={`px-1.5 py-0.5 rounded font-bold ${
-                            doc.text_quality >= 0.8
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
+                          className={`font-mono text-[9px] uppercase tracking-wider border rounded-[2px] px-1 py-0.5 font-semibold ${
+                            isAnalyzed
+                              ? 'border-[var(--status-complied)] text-[var(--status-complied)] bg-[var(--status-complied-bg)]'
+                              : isFailed
+                              ? 'border-[var(--status-overdue)] text-[var(--status-overdue)] bg-[var(--status-overdue-bg)]'
+                              : 'border-[var(--border-rule-strong)] text-[var(--ink-secondary)] bg-[var(--bg-surface-muted)]'
                           }`}
                         >
-                          {(doc.text_quality * 100).toFixed(0)}%
+                          {doc.status}
                         </span>
-                      ) : (
-                        <span className="text-slate-400">-</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-3xs font-semibold ${
-                          isAnalysed
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
-                            : isFail
-                            ? 'bg-rose-50 text-rose-800 border border-rose-300'
-                            : 'bg-slate-100 text-slate-800'
-                        }`}
-                      >
-                        {isAnalysed && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
-                        {isFail && <XCircle className="w-3 h-3 text-rose-600" />}
-                        {doc.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500 max-w-xs truncate" title={doc.status}>
-                      {isFail ? 'Marked FAILED_UNREADABLE (PyMuPDF unreadable)' : 'Clean extraction'}
-                    </td>
-                  </tr>
+                        {isFailed && (
+                          <span className="font-sans text-[10px] text-[var(--status-overdue)]">
+                            Scanned or unreadable vector text
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 );
-              })}
-            </tbody>
-          </table>
-        </div>
+              })
+            )}
+          </tbody>
+        </DataTable>
       </div>
     </div>
   );

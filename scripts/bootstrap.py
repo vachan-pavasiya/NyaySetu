@@ -1,8 +1,8 @@
 """
 Idempotent Deployment Bootstrap Script
 Role: Performs first-deploy initialization using live data from the AWS Open Data bucket.
-Data Flow: S3 reachability check -> Ingest real judgments -> Analyze directions -> Link follow-up cases -> Compute compliance status.
-Hard Rules: Never fake or seed data. Refuses to run if S3 is unreachable.
+Data Flow: S3 reachability check -> Gemini reachability check -> Ingest real judgments -> Analyze directions -> Link follow-up cases -> Compute compliance status.
+Hard Rules: Never fake or seed data. Refuses to run if S3 or Gemini is unreachable.
 """
 
 import os
@@ -40,7 +40,6 @@ def verify_s3_reachability(bucket_name: str, region: str) -> bool:
             region_name=region,
             config=Config(signature_version=UNSIGNED, connect_timeout=5, read_timeout=5),
         )
-        # Attempt listing 1 object to test unsigned access
         res = s3.list_objects_v2(Bucket=bucket_name, MaxKeys=1)
         if "Contents" in res or "KeyCount" in res:
             print("[BOOTSTRAP 1/5] [OK] AWS Open Data bucket is reachable with unsigned public access.")
@@ -59,7 +58,40 @@ def verify_s3_reachability(bucket_name: str, region: str) -> bool:
         return False
 
 
-def run_bootstrap():
+def verify_gemini_reachability() -> bool:
+    """Verify that Google Gemini API is reachable with the configured API key."""
+    print("[BOOTSTRAP 2/5] Verifying Google Gemini API connectivity...")
+    api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        print("\n" + "!" * 80)
+        print("[BOOTSTRAP FATAL ERROR] GEMINI_API_KEY is not configured.")
+        print("Please set the GEMINI_API_KEY environment variable before running bootstrap.")
+        print("!" * 80 + "\n")
+        return False
+
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        model = settings.GEMINI_MODEL or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        # Lightweight connection ping
+        res = client.models.generate_content(
+            model=model,
+            contents="State OK in one word.",
+        )
+        if res and res.text:
+            print(f"[BOOTSTRAP 2/5] [OK] Google Gemini API reachable using model '{model}'.")
+            return True
+        return True
+    except Exception as exc:
+        print("\n" + "!" * 80)
+        print("[BOOTSTRAP FATAL ERROR] Google Gemini API is UNREACHABLE or returned an error.")
+        print(f"Details: {exc}")
+        print("Please verify GEMINI_API_KEY validity, quota budget, and outbound access.")
+        print("!" * 80 + "\n")
+        return False
+
+
+def run_bootstrap(exit_on_failure: bool = True) -> bool:
     """Execute idempotent bootstrap pipeline."""
     start_time = time.time()
     print("\n" + "=" * 80)
@@ -69,10 +101,18 @@ def run_bootstrap():
 
     # 1. Enforce S3 reachability
     if not verify_s3_reachability(settings.S3_BUCKET, settings.AWS_DEFAULT_REGION):
-        sys.exit(1)
+        if exit_on_failure:
+            sys.exit(1)
+        return False
+
+    # 2. Enforce Gemini reachability
+    if not verify_gemini_reachability():
+        if exit_on_failure:
+            sys.exit(1)
+        return False
 
     # Ensure database schema is created
-    print("[BOOTSTRAP 2/5] Ensuring database schema exists...")
+    print("[BOOTSTRAP 3/5] Ensuring database schema exists...")
     Base.metadata.create_all(bind=engine)
 
     # Check configuration from environment
@@ -85,19 +125,19 @@ def run_bootstrap():
     try:
         existing_judgments = db.query(Judgment).count()
         existing_directions = db.query(Direction).count()
-        print(f"[BOOTSTRAP 2/5] Current DB state: {existing_judgments} judgments, {existing_directions} directions.")
+        print(f"[BOOTSTRAP 3/5] Current DB state: {existing_judgments} judgments, {existing_directions} directions.")
 
         if existing_judgments >= limit and not force:
             print(f"[BOOTSTRAP] Database already bootstrapped with {existing_judgments} real judgments.")
             print("[BOOTSTRAP] Idempotent skip: No new ingestion required. Set FORCE_BOOTSTRAP=true to override.")
         else:
-            # 2. Ingest real judgments
+            # 3. Ingest real judgments
             needed = max(limit - existing_judgments, 5) if not force else limit
-            print(f"\n[BOOTSTRAP 3/5] Ingesting {needed} real judgments from S3 ({court} / {year})...")
+            print(f"\n[BOOTSTRAP 4/5] Ingesting {needed} real judgments from S3 ({court} / {year})...")
             ingest_res = run_ingestion(court=court, year=year, limit=needed, db=db)
-            print(f"[BOOTSTRAP 3/5] Ingestion completed: {ingest_res.get('succeeded')} succeeded, {ingest_res.get('failed')} failed.")
+            print(f"[BOOTSTRAP 4/5] Ingestion completed: {ingest_res.get('succeeded')} succeeded, {ingest_res.get('failed')} failed.")
 
-        # 3. Analyze unanalyzed judgments
+        # 4. Analyze unanalyzed judgments
         unanalyzed = (
             db.query(Judgment)
             .filter(Judgment.text != None)
@@ -119,7 +159,7 @@ def run_bootstrap():
         else:
             print("\n[BOOTSTRAP 4/5] All ingested judgments have already been analyzed.")
 
-        # 4. Link follow-up cases and compute status
+        # 5. Link follow-up cases and compute status
         print("\n[BOOTSTRAP 5/5] Executing case linking and 3-status compliance engine...")
         link_res = run_full_linking_and_status_pipeline(db=db)
         print(f"[BOOTSTRAP 5/5] Case linking complete: {link_res.get('links_created', 0)} links established.")
@@ -144,11 +184,11 @@ def run_bootstrap():
         print(f"Total Case Links:       {total_l}")
         print(f"Elapsed Time:           {elapsed:.2f} seconds")
         print("=" * 80 + "\n")
+        return True
 
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    run_bootstrap()
-
+    run_bootstrap(exit_on_failure=True)
