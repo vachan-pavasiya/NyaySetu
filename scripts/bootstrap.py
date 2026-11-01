@@ -115,10 +115,10 @@ def run_bootstrap(exit_on_failure: bool = True) -> bool:
     print("[BOOTSTRAP 3/5] Ensuring database schema exists...")
     Base.metadata.create_all(bind=engine)
 
-    # Check configuration from environment
+    # Check configuration from environment (default limit=15 to stay well within Render 512MB RAM free tier)
     court = os.getenv("BOOTSTRAP_COURT", "calcutta_appellate_side")
     year = int(os.getenv("BOOTSTRAP_YEAR", "2023"))
-    limit = int(os.getenv("BOOTSTRAP_LIMIT", "25"))
+    limit = int(os.getenv("BOOTSTRAP_LIMIT", "15"))
     force = os.getenv("FORCE_BOOTSTRAP", "false").lower() == "true"
 
     db = SessionLocal()

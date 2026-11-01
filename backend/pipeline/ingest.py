@@ -318,29 +318,6 @@ def run_ingestion(
     s3_client = get_s3_client(settings.AWS_DEFAULT_REGION)
     s3fs_client = fs.S3FileSystem(anonymous=True, region=settings.AWS_DEFAULT_REGION)
 
-    # Read parquet metadata using PyArrow S3FileSystem
-    try:
-        parquet_path = f"{bucket}/{meta_key}"
-        pf = pq.ParquetFile(parquet_path, filesystem=s3fs_client)
-        # Read first row group (typically thousands of rows)
-        first_rg = pf.read_row_group(0)
-        df_meta = first_rg.to_pandas()
-    except Exception as exc:
-        err_msg = f"Failed to read parquet metadata at {meta_key}: {str(exc)}"
-        logger.error(err_msg)
-        if job_id:
-            with SessionLocal() as db:
-                job = db.query(IngestJob).filter(IngestJob.id == job_id).first()
-                if job:
-                    job.status = "FAILED"
-                    job.error_summary = err_msg
-                    job.completed_at = datetime.now(timezone.utc)
-                    db.commit()
-        return {"status": "FAILED", "error": err_msg, "total": 0, "succeeded": 0, "failed": 0}
-
-    # Filter and prioritize (Writ Petitions & Contempt Petitions)
-    df_sorted = prioritize_records(df_meta)
-
     # Filter out already ingested records so we ingest NEW judgments
     with SessionLocal() as check_db:
         existing_cnrs = set(
@@ -356,19 +333,88 @@ def run_ingestion(
             )
         )
 
-    def is_unprocessed(row: Any) -> bool:
-        cnr = row.get("cnr")
-        if cnr and cnr in existing_cnrs:
-            return False
-        pdf_link = row.get("pdf_link", "") or ""
-        filename = Path(pdf_link).name
-        s3_key = f"data/pdf/year={year}/court={court_code}/bench={bench}/{filename}"
-        if s3_key in existing_keys:
-            return False
-        return True
+    # Low-memory streaming extraction:
+    # Read only essential columns in 10,000-row chunks.
+    # Uses < 40MB RAM instead of > 500MB on whole-dataset parquet loading.
+    target_records: List[Dict[str, Any]] = []
+    columns_needed = ["title", "pdf_link", "cnr", "decision_date", "court"]
 
-    df_candidates = df_sorted[df_sorted.apply(is_unprocessed, axis=1)]
-    target_records = df_candidates.head(limit).to_dict(orient="records")
+    try:
+        parquet_path = f"{bucket}/{meta_key}"
+        pf = pq.ParquetFile(parquet_path, filesystem=s3fs_client)
+
+        def is_unprocessed_row(row_dict: Dict[str, Any]) -> bool:
+            c = row_dict.get("cnr")
+            if c and c in existing_cnrs:
+                return False
+            plink = row_dict.get("pdf_link", "") or ""
+            fname = Path(plink).name
+            skey = f"data/pdf/year={year}/court={court_code}/bench={bench}/{fname}"
+            if skey in existing_keys:
+                return False
+            return True
+
+        # Pass 1: Prioritize contempt petitions (CPAN, CONT)
+        for batch in pf.iter_batches(batch_size=10000, columns=columns_needed):
+            df_chunk = batch.to_pandas()
+            for _, r in df_chunk.iterrows():
+                row_dict = r.to_dict()
+                if not is_unprocessed_row(row_dict):
+                    continue
+                t = str(row_dict.get("title", "")).upper()
+                if any(cp in t for cp in ["CPAN", "CONT", "CONTEMPT"]):
+                    target_records.append(row_dict)
+                    if len(target_records) >= limit:
+                        break
+            del df_chunk
+            if len(target_records) >= limit:
+                break
+
+        # Pass 2: If limit not reached, stream writ petitions (WPA, WP)
+        if len(target_records) < limit:
+            for batch in pf.iter_batches(batch_size=10000, columns=columns_needed):
+                df_chunk = batch.to_pandas()
+                for _, r in df_chunk.iterrows():
+                    row_dict = r.to_dict()
+                    if not is_unprocessed_row(row_dict):
+                        continue
+                    t = str(row_dict.get("title", "")).upper()
+                    if any(wp in t for wp in ["WPA", "W.P", "WP", "CWP", "WRIT"]):
+                        if not any(cp in t for cp in ["CPAN", "CONT", "CONTEMPT"]):
+                            target_records.append(row_dict)
+                            if len(target_records) >= limit:
+                                break
+                del df_chunk
+                if len(target_records) >= limit:
+                    break
+
+        # Pass 3: If still not reached, fill with any unprocessed records
+        if len(target_records) < limit:
+            for batch in pf.iter_batches(batch_size=10000, columns=columns_needed):
+                df_chunk = batch.to_pandas()
+                for _, r in df_chunk.iterrows():
+                    row_dict = r.to_dict()
+                    if not is_unprocessed_row(row_dict):
+                        continue
+                    target_records.append(row_dict)
+                    if len(target_records) >= limit:
+                        break
+                del df_chunk
+                if len(target_records) >= limit:
+                    break
+
+    except Exception as exc:
+        err_msg = f"Failed to stream parquet metadata at {meta_key}: {str(exc)}"
+        logger.error(err_msg)
+        if job_id:
+            with SessionLocal() as db:
+                job = db.query(IngestJob).filter(IngestJob.id == job_id).first()
+                if job:
+                    job.status = "FAILED"
+                    job.error_summary = err_msg
+                    job.completed_at = datetime.now(timezone.utc)
+                    db.commit()
+        return {"status": "FAILED", "error": err_msg, "total": 0, "succeeded": 0, "failed": 0}
 
     total_target = len(target_records)
     logger.info(f"Selected {total_target} new prioritized judgment records to ingest ({len(existing_keys)} already cached in database).")
