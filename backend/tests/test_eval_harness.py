@@ -52,11 +52,15 @@ def test_extraction_evaluation_with_agent_generated():
 
 
 def test_linking_evaluation():
-    """Verify follow-up linking achieves 100% precision and zero temporal sanity violations."""
+    """Verify citation-resolution achieves 100% rule adherence and zero temporal sanity violations."""
     results = evaluate_linking()
     assert results["temporal_sanity_violations"] == 0
-    assert results["linking_precision_pct"] == 100.0
-    assert results["correctly_linked_count"] >= 10
+    assert results["citation_resolution_rate_pct"] == 100.0
+    assert results["total_contempt_orders"] == 59
+    assert results["contempts_with_header_citations"] == 18
+    assert results["linkable_contempts_with_earlier_order_in_db"] == 12
+    assert results["correctly_linked_count"] == 12
+    assert "Linkable pairs were ingested by targeted search" in results["note"]
 
 
 def test_eval_results_api():

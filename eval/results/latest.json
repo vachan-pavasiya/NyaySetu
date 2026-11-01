@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-11-01T06:40:46.196906+00:00",
+  "timestamp": "2026-11-01T06:58:27.059749+00:00",
   "summary": {
     "gold_files_count": 0,
     "overall_extraction_f1": 0.0,
@@ -8,9 +8,10 @@
     "hallucination_rate_pct": 0.0,
     "deadline_exact_accuracy_pct": 0.0,
     "deadline_cases_tested": 0,
-    "linking_f1_pct": 100.0,
-    "linking_precision_pct": 100.0,
-    "linking_recall_pct": 100.0,
+    "citation_resolution_rate_pct": 100.0,
+    "contempts_with_header_citations": 18,
+    "total_contempt_orders": 59,
+    "linkable_contempts": 12,
     "temporal_sanity_violations": 0
   },
   "extraction": {
@@ -26,16 +27,18 @@
     "message": "no human gold labels available"
   },
   "linking": {
-    "eval_type": "followup_linking",
+    "eval_type": "citation_resolution_adherence",
+    "metric_name": "Citation-resolution rate (rule adherence)",
     "total_contempt_orders": 59,
     "contempts_with_header_citations": 18,
+    "contempts_with_header_citations_pct": 30.5,
     "linkable_contempts_with_earlier_order_in_db": 12,
+    "cited_writs_in_db_pct": 66.7,
     "correctly_linked_count": 12,
-    "linking_recall_pct": 100.0,
-    "linking_precision_pct": 100.0,
-    "linking_f1_pct": 100.0,
+    "citation_resolution_rate_pct": 100.0,
     "temporal_sanity_violations": 0,
     "total_system_links": 17,
+    "note": "Linkable pairs were ingested by targeted search, so this is not an accuracy estimate.",
     "evaluated_pairs": [
       {
         "contempt_case": "WPCRC/18046/2005",

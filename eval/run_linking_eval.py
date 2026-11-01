@@ -1,6 +1,6 @@
 """
-Follow-up Linking Evaluation Runner
-Role: Evaluates the pipeline's ability to link subsequent contempt petitions to their earlier writ orders.
+Follow-up Linking Evaluation Runner: Citation-Resolution Rate (Rule Adherence)
+Role: Evaluates the pipeline's deterministic citation extraction and rule adherence when linking contempt petitions to earlier writ orders.
 Data Flow: Database (Contempt Judgments & Earlier Writs) -> Header Citation Extraction & Linking -> Metrics Table
 """
 
@@ -20,7 +20,7 @@ from backend.pipeline.linking import extract_header_citations, normalize_case_ci
 
 
 def evaluate_linking() -> Dict[str, Any]:
-    """Run linking evaluation across contempt petitions in the database."""
+    """Run citation-resolution evaluation across contempt petitions in the database."""
     db = SessionLocal()
     try:
         contempts = db.query(Judgment).filter(
@@ -81,40 +81,42 @@ def evaluate_linking() -> Dict[str, Any]:
                     "temporal_sanity_pass": True if (not link or link.link_confidence == "LOW" or (target_writ.judgment_date <= cp.judgment_date)) else False,
                 })
 
-        # Precision & Recall
-        # Linkable recall: how many of the available writ-contempt pairs were linked
-        linking_recall = round((correctly_linked / max(linkable_contempts, 1)) * 100.0, 1)
-        # Precision of links created from citations
-        citation_precision = round((correctly_linked / max(correctly_linked, 1)) * 100.0, 1)
-        f1_score = round((2 * citation_precision * linking_recall) / max(citation_precision + linking_recall, 1), 1)
+        # Citation-resolution rate (rule adherence) on linkable pairs:
+        # How reliably the deterministic citation matcher connects a contempt petition to its earlier order when that order exists in DB.
+        citation_resolution_rate = round((correctly_linked / max(linkable_contempts, 1)) * 100.0, 1)
+        citation_header_pct = round((contempts_with_citation / max(total_contempts, 1)) * 100.0, 1)
+        cited_writs_in_db_pct = round((linkable_contempts / max(contempts_with_citation, 1)) * 100.0, 1)
+
+        eval_note = "Linkable pairs were ingested by targeted search, so this is not an accuracy estimate."
 
         results = {
-            "eval_type": "followup_linking",
+            "eval_type": "citation_resolution_adherence",
+            "metric_name": "Citation-resolution rate (rule adherence)",
             "total_contempt_orders": total_contempts,
             "contempts_with_header_citations": contempts_with_citation,
+            "contempts_with_header_citations_pct": citation_header_pct,
             "linkable_contempts_with_earlier_order_in_db": linkable_contempts,
+            "cited_writs_in_db_pct": cited_writs_in_db_pct,
             "correctly_linked_count": correctly_linked,
-            "linking_recall_pct": linking_recall,
-            "linking_precision_pct": citation_precision,
-            "linking_f1_pct": f1_score,
+            "citation_resolution_rate_pct": citation_resolution_rate,
             "temporal_sanity_violations": temporal_sanity_violations,
             "total_system_links": total_links,
+            "note": eval_note,
             "evaluated_pairs": linking_details,
         }
 
         # Print metrics table
         print("\n" + "=" * 80)
-        print(f"FOLLOW-UP LINKING EVALUATION REPORT ({total_contempts} Contempt Orders in DB)")
+        print(f"CITATION-RESOLUTION EVALUATION REPORT ({total_contempts} Contempt Orders in DB)")
         print("=" * 80)
-        print(f"{'LINKING METRIC':<45} {'RESULT':<15} {'COUNT / BASE'}")
+        print(f"{'EVALUATION METRIC':<45} {'RESULT':<15} {'COUNT / BASE'}")
         print("-" * 80)
-        print(f"{'Contempt Orders with Header Citations':<45} {round((contempts_with_citation/total_contempts)*100, 1):<14.1f}% {contempts_with_citation} / {total_contempts}")
-        print(f"{'Cited Writs Present in Database':<45} {round((linkable_contempts/contempts_with_citation)*100, 1):<14.1f}% {linkable_contempts} / {contempts_with_citation}")
-        print(f"{'Linking Precision':<45} {citation_precision:<14.1f}% {correctly_linked} / {correctly_linked}")
-        print(f"{'Linking Recall (on Linkable Pairs)':<45} {linking_recall:<14.1f}% {correctly_linked} / {linkable_contempts}")
-        print(f"{'Linking F1 Score':<45} {f1_score:<14.1f}% -")
-        print("-" * 80)
+        print(f"{'Contempt Orders with Header Citations':<45} {citation_header_pct:<14.1f}% {contempts_with_citation} / {total_contempts} ({citation_header_pct}%)")
+        print(f"{'Cited Writs Present in Database':<45} {cited_writs_in_db_pct:<14.1f}% {linkable_contempts} / {contempts_with_citation} ({cited_writs_in_db_pct}%)")
+        print(f"{'Citation-resolution rate (rule adherence)':<45} {citation_resolution_rate:<14.1f}% {correctly_linked} / {linkable_contempts} ({citation_resolution_rate}%)")
         print(f"{'Temporal Sanity Violations':<45} {'0 (ENFORCED)':<15} {temporal_sanity_violations} violations")
+        print("-" * 80)
+        print(f"NOTE: {eval_note}")
         print("=" * 80)
         print("SAMPLE EVALUATED LINKING CHAINS:")
         for item in linking_details[:6]:
@@ -129,4 +131,5 @@ def evaluate_linking() -> Dict[str, Any]:
 
 if __name__ == "__main__":
     evaluate_linking()
+
 

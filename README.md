@@ -154,7 +154,7 @@ python eval/run_extraction_eval.py
 # 2. Deterministic Deadline Math Evaluation (vs 25 hand-calculated cases)
 python eval/run_deadline_eval.py
 
-# 3. Follow-up Contempt Petition Linking Accuracy (Precision, Recall, F1)
+# 3. Citation-Resolution Rate (Rule Adherence)
 python eval/run_linking_eval.py
 
 # 4. Master Full Suite Run (Consolidates and writes eval/results/latest.json)
@@ -171,8 +171,9 @@ python eval/run_all_evals.py
 | **Extraction F1** | Deadline Phrase | **100.0%** | Exact Whitespace-Normalized Match |
 | **Hallucination Rate** | Verbatim Quote Verifier | **4.35%** | Only 1 of 23 quotes differed from source |
 | **Deadline Math** | Exact All-Field Accuracy | **100.0%** | 25 Hand-Calculated Cases (`eval/deadline_cases.json`) |
-| **Follow-up Linking** | Linking Precision | **100.0%** | 12 of 12 Linkable Writ-Contempt Pairs |
-| **Follow-up Linking** | Linking Recall | **100.0%** | Citation Header Parsing (`CPAN` in `WPA`) |
+| **Citation Resolution** | Contempts with Header Citations | **30.5%** | 18 of 59 Contempt Orders contain header citation |
+| **Citation Resolution** | Cited Writs in Database | **66.7%** | 12 of 18 cited writs exist in DB |
+| **Citation Resolution** | Rule Adherence | **100.0%** | 12 of 12 linkable pairs resolved *(Note: Linkable pairs were ingested by targeted search, so this is not an accuracy estimate)* |
 | **Temporal Sanity** | Date Inversion Violations | **0** | Strict Rule: Writ $\le$ Contempt Date Enforced |
 
 ---

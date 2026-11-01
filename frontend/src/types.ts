@@ -326,9 +326,10 @@ export interface EvalSummary {
   hallucination_rate_pct: number;
   deadline_exact_accuracy_pct: number;
   deadline_cases_tested: number;
-  linking_f1_pct: number;
-  linking_precision_pct: number;
-  linking_recall_pct: number;
+  citation_resolution_rate_pct?: number;
+  contempts_with_header_citations?: number;
+  total_contempt_orders?: number;
+  linkable_contempts?: number;
   temporal_sanity_violations: number;
 }
 
