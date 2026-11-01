@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import type { DashboardResponse } from '../types';
 import { AgentActivityFeed } from './AgentActivityFeed';
+import { getApiUrl } from '../config';
 
 interface DashboardViewProps {
   onSelectDepartment: (department: string) => void;
@@ -32,10 +33,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const fetchDashboard = async () => {
     setLoading(true);
     try {
-      let res = await fetch('/api/dashboard');
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/dashboard');
-      }
+      const res = await fetch(getApiUrl('/dashboard'));
       if (res.ok) {
         const json = await res.json();
         setData(json);

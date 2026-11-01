@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
 import type { TimelineEvent } from '../types';
+import { getApiUrl } from '../config';
 
 interface TimelineViewProps {
   initialCaseNumber?: string;
@@ -36,10 +37,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({ initialCaseNumber, o
     setError(null);
     try {
       const encoded = encodeURIComponent(caseNumber);
-      let res = await fetch(`/api/cases/${encoded}/timeline`);
-      if (!res.ok) {
-        res = await fetch(`http://127.0.0.1:8000/cases/${encoded}/timeline`);
-      }
+      const res = await fetch(getApiUrl(`/cases/${encoded}/timeline`));
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data = await res.json();
       setTimelineData(data);

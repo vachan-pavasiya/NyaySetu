@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, RefreshCw, ExternalLink, ShieldCheck } from 'lucide-react';
 import type { CalendarResponse, CalendarDirectionItem } from '../types';
 import { StatusBadge, FlagBadges } from './StatusBadge';
+import { getApiUrl } from '../config';
 
 interface CalendarViewProps {
   onSelectJudgment?: (judgmentId: number) => void;
@@ -30,10 +31,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ onSelectJudgment }) 
     setLoading(true);
     setError(null);
     try {
-      let res = await fetch(`/api/calendar?month=${month}`);
-      if (!res.ok) {
-        res = await fetch(`http://127.0.0.1:8000/calendar?month=${month}`);
-      }
+      const res = await fetch(getApiUrl(`/calendar?month=${month}`));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: CalendarResponse = await res.json();
       setData(json);

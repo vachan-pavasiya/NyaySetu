@@ -10,6 +10,7 @@ import {
   Terminal,
 } from 'lucide-react';
 import type { EvalResultsResponse } from '../types';
+import { getApiUrl } from '../config';
 
 export const EvalView: React.FC = () => {
   const [data, setData] = useState<EvalResultsResponse | null>(null);
@@ -21,10 +22,7 @@ export const EvalView: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      let res = await fetch('/api/eval/results');
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/eval/results');
-      }
+      const res = await fetch(getApiUrl('/eval/results'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: EvalResultsResponse = await res.json();
       setData(json);
@@ -40,10 +38,7 @@ export const EvalView: React.FC = () => {
     setRunning(true);
     setError(null);
     try {
-      let res = await fetch('/api/eval/run', { method: 'POST' });
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/eval/run', { method: 'POST' });
-      }
+      const res = await fetch(getApiUrl('/eval/run'), { method: 'POST' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json: EvalResultsResponse = await res.json();
       setData(json);

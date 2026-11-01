@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DownloadCloud, Play, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Sparkles } from 'lucide-react';
 import type { IngestJobResponse, BatchAnalyzeResponse, JudgmentSummary } from '../types';
+import { getApiUrl } from '../config';
 
 export const IngestView: React.FC = () => {
   // Ingest form state
@@ -35,10 +36,7 @@ export const IngestView: React.FC = () => {
   const fetchRecentDocs = async () => {
     setLoadingDocs(true);
     try {
-      let res = await fetch('/api/judgments?limit=15&offset=0');
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/judgments?limit=15&offset=0');
-      }
+      const res = await fetch(getApiUrl('/judgments?limit=15&offset=0'));
       if (res.ok) {
         const data = await res.json();
         setRecentDocs(data.items || []);
@@ -63,10 +61,7 @@ export const IngestView: React.FC = () => {
 
     pollIntervalRef.current = setInterval(async () => {
       try {
-        let res = await fetch(`/api/ingest/jobs/${jobId}`);
-        if (!res.ok) {
-          res = await fetch(`http://127.0.0.1:8000/ingest/jobs/${jobId}`);
-        }
+        const res = await fetch(getApiUrl(`/ingest/jobs/${jobId}`));
         if (res.ok) {
           const job: IngestJobResponse = await res.json();
           setActiveJob(job);
@@ -91,18 +86,11 @@ export const IngestView: React.FC = () => {
     setActiveJob(null);
 
     try {
-      let res = await fetch('/api/ingest', {
+      const res = await fetch(getApiUrl('/ingest'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ court, year: Number(year), limit: Number(limit) }),
       });
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/ingest', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ court, year: Number(year), limit: Number(limit) }),
-        });
-      }
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -125,18 +113,11 @@ export const IngestView: React.FC = () => {
     setAnalyzeResult(null);
 
     try {
-      let res = await fetch('/api/analyze/batch', {
+      const res = await fetch(getApiUrl('/analyze/batch'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ limit: Number(analyzeLimit) }),
       });
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/analyze/batch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ limit: Number(analyzeLimit) }),
-        });
-      }
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));

@@ -3,6 +3,7 @@ import { RefreshCw, Search, ChevronRight, FileText } from 'lucide-react';
 import type { JudgmentSummary, JudgmentDetail, DirectionItem } from '../types';
 import { StatusBadge, FlagBadges } from './StatusBadge';
 import { EvidencePanel } from './EvidencePanel';
+import { getApiUrl } from '../config';
 
 interface JudgmentViewProps {
   initialJudgmentId?: number;
@@ -23,10 +24,7 @@ export const JudgmentView: React.FC<JudgmentViewProps> = ({ initialJudgmentId })
   const fetchJudgments = async () => {
     setLoading(true);
     try {
-      let res = await fetch('/api/judgments?limit=200');
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/judgments?limit=200');
-      }
+      const res = await fetch(getApiUrl('/judgments?limit=200'));
       if (res.ok) {
         const data = await res.json();
         const items: JudgmentSummary[] = data.items || [];
@@ -52,20 +50,14 @@ export const JudgmentView: React.FC<JudgmentViewProps> = ({ initialJudgmentId })
     setActiveDirectionId(null);
     try {
       // 1. Fetch full judgment detail (has text)
-      let detailRes = await fetch(`/api/judgments/${judgmentId}`);
-      if (!detailRes.ok) {
-        detailRes = await fetch(`http://127.0.0.1:8000/judgments/${judgmentId}`);
-      }
+      const detailRes = await fetch(getApiUrl(`/judgments/${judgmentId}`));
       if (detailRes.ok) {
         const detail: JudgmentDetail = await detailRes.json();
         setSelectedJudgment(detail);
       }
 
       // 2. Fetch directions for this judgment
-      let dirsRes = await fetch(`/api/judgments/${judgmentId}/directions`);
-      if (!dirsRes.ok) {
-        dirsRes = await fetch(`http://127.0.0.1:8000/judgments/${judgmentId}/directions`);
-      }
+      const dirsRes = await fetch(getApiUrl(`/judgments/${judgmentId}/directions`));
       if (dirsRes.ok) {
         const rawDirs = await dirsRes.json();
 
@@ -73,10 +65,7 @@ export const JudgmentView: React.FC<JudgmentViewProps> = ({ initialJudgmentId })
         const fullDirs: DirectionItem[] = await Promise.all(
           rawDirs.map(async (d: any) => {
             try {
-              let dRes = await fetch(`/api/directions/${d.id}`);
-              if (!dRes.ok) {
-                dRes = await fetch(`http://127.0.0.1:8000/directions/${d.id}`);
-              }
+              const dRes = await fetch(getApiUrl(`/directions/${d.id}`));
               if (dRes.ok) return await dRes.json();
             } catch {
               // fallback

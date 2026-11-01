@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Clock, HelpCircle, AlertTriangle, ShieldAlert, Scale, Layers, RefreshCw } from 'lucide-react';
 import type { OverallStats } from '../types';
 import { AgentActivityFeed } from './AgentActivityFeed';
+import { getApiUrl } from '../config';
 
 export const StatsView: React.FC = () => {
   const [stats, setStats] = useState<OverallStats | null>(null);
@@ -10,10 +11,7 @@ export const StatsView: React.FC = () => {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      let res = await fetch('/api/stats');
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/stats');
-      }
+      const res = await fetch(getApiUrl('/stats'));
       if (res.ok) {
         const data = await res.json();
         setStats(data);

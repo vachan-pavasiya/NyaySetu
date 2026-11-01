@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # LLM Settings
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-flash-lite-latest"
+    GEMINI_FALLBACK_MODEL: str = "gemini-1.5-flash"
+    DAILY_GEMINI_BUDGET: int = 250
 
     # AWS S3 Settings (Open Dataset)
     S3_BUCKET: str = "indian-high-court-judgments"
@@ -28,9 +30,10 @@ class Settings(BaseSettings):
     # Compliance & Ledger Calculations
     SERVICE_LAG_DAYS: int = 30
 
-    # Persistence
+    # Persistence & Networking
     DATABASE_URL: str = "sqlite:///./compliance_radar.db"
-    ENVIRONMENT: str = "development"
+    ALLOWED_ORIGINS: str = "*"
+    ENVIRONMENT: str = "production"
 
 
 @lru_cache()

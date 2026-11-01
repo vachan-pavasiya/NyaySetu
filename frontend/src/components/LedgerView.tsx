@@ -14,6 +14,7 @@ import {
 import type { LedgerItem, LedgerResponse } from '../types';
 import { StatusBadge, FlagBadges } from './StatusBadge';
 import { EvidencePanel } from './EvidencePanel';
+import { getApiUrl } from '../config';
 
 interface LedgerViewProps {
   initialDepartment?: string;
@@ -74,11 +75,8 @@ export const LedgerView: React.FC<LedgerViewProps> = ({
       params.append('page', page.toString());
       params.append('page_size', pageSize.toString());
 
-      let res = await fetch(`/api/ledger?${params.toString()}`);
-      if (!res.ok) {
-        res = await fetch(`http://127.0.0.1:8000/ledger?${params.toString()}`);
-        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-      }
+      const res = await fetch(getApiUrl(`/ledger?${params.toString()}`));
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const data: LedgerResponse = await res.json();
       setItems(data.items || []);
       setTotal(data.total || 0);
@@ -123,10 +121,7 @@ export const LedgerView: React.FC<LedgerViewProps> = ({
     if (!expandedDetail[directionId]) {
       setLoadingDetail((prev) => ({ ...prev, [directionId]: true }));
       try {
-        let res = await fetch(`/api/directions/${directionId}`);
-        if (!res.ok) {
-          res = await fetch(`http://127.0.0.1:8000/directions/${directionId}`);
-        }
+        const res = await fetch(getApiUrl(`/directions/${directionId}`));
         if (res.ok) {
           const detail = await res.json();
           setExpandedDetail((prev) => ({ ...prev, [directionId]: detail }));
@@ -150,7 +145,7 @@ export const LedgerView: React.FC<LedgerViewProps> = ({
     if (overdueOnly) params.append('overdue_only', 'true');
     if (contemptOnly) params.append('contempt_only', 'true');
 
-    window.location.href = `http://127.0.0.1:8000/export.csv?${params.toString()}`;
+    window.location.href = getApiUrl(`/export.csv?${params.toString()}`);
   };
 
   return (

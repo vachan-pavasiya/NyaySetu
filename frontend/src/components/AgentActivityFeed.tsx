@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, RefreshCw, CheckCircle2, AlertCircle, Clock, ChevronDown, ChevronRight, Play } from 'lucide-react';
 import type { AgentRunItem } from '../types';
+import { getApiUrl } from '../config';
 
 export const AgentActivityFeed: React.FC = () => {
   const [runs, setRuns] = useState<AgentRunItem[]>([]);
@@ -11,10 +12,7 @@ export const AgentActivityFeed: React.FC = () => {
 
   const fetchRuns = async () => {
     try {
-      let res = await fetch('/api/agent/runs?limit=20');
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/agent/runs?limit=20');
-      }
+      const res = await fetch(getApiUrl('/agent/runs?limit=20'));
       if (res.ok) {
         const data = await res.json();
         setRuns(data.runs || []);
@@ -36,10 +34,7 @@ export const AgentActivityFeed: React.FC = () => {
     setRescanning(true);
     setRescanMessage(null);
     try {
-      let res = await fetch('/api/agent/rescan', { method: 'POST' });
-      if (!res.ok) {
-        res = await fetch('http://127.0.0.1:8000/agent/rescan', { method: 'POST' });
-      }
+      const res = await fetch(getApiUrl('/agent/rescan'), { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setRescanMessage(data.message || 'Rescan completed successfully');
