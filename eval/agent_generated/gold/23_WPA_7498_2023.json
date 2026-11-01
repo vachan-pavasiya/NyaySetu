@@ -1,0 +1,48 @@
+{
+  "judgment_id": 23,
+  "case_number": "WPA/7498/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-06-23",
+  "petitioner": "MALATI PAN",
+  "respondent": "STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": "nt on superannuation and the\nconcerned Treasury Officer, thereafter shall release\nthe pension in accordance with the Revised Pension\nPayment Order.\n3\nEntire exercise in this regard is required to be\ncompleted within a period of twelve weeks from the\ndate of communication of this order.\nW.P.A. 7498 of 2023 stands disposed of with\nthe above directions. There shall be no order as to\ncosts.\n Urgent photostat certified copy of this order, if\napplied for, be supplied to the parties subject to\ncompliance with all requisite formalities.\n                                             (Biswajit Basu, J.)\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "District Inspector of School (SE)",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "verify the records expeditiously to ascertain as to whether the petitioner had exercised the said option and refunded the employer’s share of contribution within the time limited by the aforesaid notification dated June 13, 2014",
+      "deadline_phrase": "within a period of twelve weeks from the\ndate of communication of this order",
+      "source_quote": "The concerned District Inspector of School (SE)\nis directed to verify the records expeditiously to\nascertain as to whether the petitioner had exercised\nthe said option and refunded the employer’s share of\ncontribution within the time limited by the aforesaid\nnotification dated June 13, 2014."
+    },
+    {
+      "direction_id": 2,
+      "responsible_party": "District Inspector of School (SE)",
+      "party_type": "officer",
+      "direction_type": "consequential",
+      "action": "process the claim of the petitioner for arrears of pension and forward the necessary recommendation and/or sanction to the Director of Pension, Provident Fund and Group Insurance",
+      "deadline_phrase": "within a period of twelve weeks from the\ndate of communication of this order",
+      "source_quote": "In the event, it is found that the said option was\nso exercised, the said authority shall process the\nclaim of the petitioner for arrears of pension and\nshall forward the necessary recommendation and/or\nsanction to the Director of Pension, Provident Fund\nand Group Insurance"
+    },
+    {
+      "direction_id": 3,
+      "responsible_party": "Director of Pension, Provident Fund and Group Insurance",
+      "party_type": "department",
+      "direction_type": "consequential",
+      "action": "take steps to issue Revised Pension Payment Order in favour of the petitioner with effect from the date following the date of her retirement on superannuation",
+      "deadline_phrase": "within a period of twelve weeks from the\ndate of communication of this order",
+      "source_quote": "who, in turn, shall take steps\nto issue Revised Pension Payment Order in favour of\nthe petitioner with effect from the date following the\ndate of her retirement on superannuation and the\nconcerned Treasury Officer, thereafter shall release\nthe pension in accordance with the Revised Pension\nPayment Order.\n3\nEntire exercise in this regard is required to be\ncompleted within a period of twelve weeks from the\ndate of communication of this order."
+    },
+    {
+      "direction_id": 4,
+      "responsible_party": "Treasury Officer",
+      "party_type": "officer",
+      "direction_type": "consequential",
+      "action": "release the pension in accordance with the Revised Pension Payment Order",
+      "deadline_phrase": "within a period of twelve weeks from the\ndate of communication of this order",
+      "source_quote": "and the\nconcerned Treasury Officer, thereafter shall release\nthe pension in accordance with the Revised Pension\nPayment Order.\n3\nEntire exercise in this regard is required to be\ncompleted within a period of twelve weeks from the\ndate of communication of this order."
+    }
+  ]
+}

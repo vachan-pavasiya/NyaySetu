@@ -1,0 +1,21 @@
+{
+  "judgment_id": 12,
+  "case_number": "WPA/11854/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-07-28",
+  "petitioner": "CHANDANA SAHA",
+  "respondent": "STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": "from the date of retirement of the petitioner till\nthe date of such payment.\nThe payment as aforesaid shall be made\nwithin the period of eight weeks from the date of\ncommunication of this order, in default the said\narrear amount shall fetch an additional interest\nof 2% per annum.\nW.P.A. 11854 of 2023 stands disposed of,\nwith the above directions. There shall be no\norder as to costs.\nUrgent photostat certified copy of this\norder, if applied for, be supplied to the parties\nsubject \nto \ncompliance \nwith \nall \nrequisite\nformalities.\n                                             (Biswajit Basu, J.)\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Treasury Officer",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Pay interest at the rate of 8% per annum on the gratuity from the date of retirement of the petitioner till the date of such payment within eight weeks from the date of communication of the order.",
+      "deadline_phrase": "within the period of eight weeks from the date of\ncommunication of this order",
+      "source_quote": "The respondents, the concerned Treasury\nOfficer in particular are, therefore, directed to\n2\npay interest @ 8% per annum on the gratuity\nfrom the date of retirement of the petitioner till\nthe date of such payment.\nThe payment as aforesaid shall be made\nwithin the period of eight weeks from the date of\ncommunication of this order, in default the said\narrear amount shall fetch an additional interest\nof 2% per annum."
+    }
+  ]
+}

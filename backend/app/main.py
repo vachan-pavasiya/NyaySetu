@@ -13,6 +13,7 @@ import time
 import uuid
 import logging
 from datetime import date, datetime, timezone, timedelta
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator, List, Optional, Union, Any, Dict, Tuple, Set
 
@@ -1845,6 +1846,41 @@ def trigger_agent_rescan(db: Session = Depends(get_db)):
     except Exception as exc:
         logger.error(f"Agent rescan failed: {exc}")
         raise HTTPException(status_code=500, detail=f"Agent rescan error: {str(exc)}")
+
+
+# ============================================================================
+# Phase 6: Evaluation Harness Endpoints
+# ============================================================================
+
+@app.get("/eval/results", tags=["Evaluation"])
+def get_evaluation_results():
+    """Retrieve the latest evaluation metrics across extraction, deadline resolution, and linking."""
+    results_file = Path("eval/results/latest.json")
+    if not results_file.exists():
+        try:
+            from eval.run_all_evals import run_all_evaluations
+            return run_all_evaluations()
+        except Exception as exc:
+            logger.error(f"Failed to run evaluations: {exc}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate evaluation results: {str(exc)}")
+
+    try:
+        with open(results_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read evaluation results: {str(exc)}")
+
+
+@app.post("/eval/run", tags=["Evaluation"])
+def run_evaluation_suite():
+    """Trigger a live execution of the full evaluation harness and update latest.json."""
+    try:
+        from eval.run_all_evals import run_all_evaluations
+        results = run_all_evaluations()
+        return results
+    except Exception as exc:
+        logger.error(f"Evaluation suite run failed: {exc}")
+        raise HTTPException(status_code=500, detail=f"Evaluation run failed: {str(exc)}")
 
 
 if __name__ == "__main__":

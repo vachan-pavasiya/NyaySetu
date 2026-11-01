@@ -129,11 +129,51 @@ Open http://localhost:3000 in your browser.
 
 ---
 
-## Evaluation Benchmark
-To run the ground-truth accuracy evaluations on the hand-labelled gold set:
+## Evaluation & Benchmarking Harness
+
+NyaySetu includes an empirical evaluation harness with hand-labelled gold ground truth from real Calcutta High Court judgments in `eval/gold/*.json` and hand-calculated date cases in `eval/deadline_cases.json`.
+
+### 1. Label Helper CLI Tool
+To view operative judgment excerpts and annotate new gold direction records:
 ```bash
-pytest backend/tests/test_eval.py -v
+# List available judgments and annotation status
+python eval/label_cli.py --list
+
+# Interactively annotate directions for a specific judgment
+python eval/label_cli.py --judgment-id 4
 ```
+
+### 2. Standalone Evaluation Commands
+
+To run any evaluation suite independently:
+
+```bash
+# 1. Extraction Evaluation (Precision, Recall, F1 & Hallucination Rate)
+python eval/run_extraction_eval.py
+
+# 2. Deterministic Deadline Math Evaluation (vs 25 hand-calculated cases)
+python eval/run_deadline_eval.py
+
+# 3. Follow-up Contempt Petition Linking Accuracy (Precision, Recall, F1)
+python eval/run_linking_eval.py
+
+# 4. Master Full Suite Run (Consolidates and writes eval/results/latest.json)
+python eval/run_all_evals.py
+```
+
+### 3. Latest Benchmark Results (Real Open Data)
+
+| Evaluation Harness | Metric / Component | Score | Benchmark Dataset |
+| :--- | :--- | :---: | :--- |
+| **Extraction Precision** | Responsible Party | **95.7%** | 11 Hand-labelled Gold Orders (`eval/gold/`) |
+| **Extraction Recall** | Responsible Party | **100.0%** | 22 Real Ground-Truth Directions |
+| **Extraction F1** | Operative Action | **97.8%** | Fuzzy Token & Sequence Overlap (>= 0.60) |
+| **Extraction F1** | Deadline Phrase | **100.0%** | Exact Whitespace-Normalized Match |
+| **Hallucination Rate** | Verbatim Quote Verifier | **4.35%** | Only 1 of 23 quotes differed from source |
+| **Deadline Math** | Exact All-Field Accuracy | **100.0%** | 25 Hand-Calculated Cases (`eval/deadline_cases.json`) |
+| **Follow-up Linking** | Linking Precision | **100.0%** | 12 of 12 Linkable Writ-Contempt Pairs |
+| **Follow-up Linking** | Linking Recall | **100.0%** | Citation Header Parsing (`CPAN` in `WPA`) |
+| **Temporal Sanity** | Date Inversion Violations | **0** | Strict Rule: Writ $\le$ Contempt Date Enforced |
 
 ---
 

@@ -1,0 +1,21 @@
+{
+  "judgment_id": 50,
+  "case_number": "WPA/11971/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-06-06",
+  "petitioner": "SABYASACHI GIRI",
+  "respondent": "STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": "of three months from the date of\ncommunication of this order, after giving reasonable\nopportunity of hearing to all the interested  persons\nincluding the petitioner and the private respondents, in\naccordance with law.\nWith the above observations and directions this writ\npetition is disposed of.\nThere shall be, however, no order as to costs.\nSince \nno \naffidavit \nis \ninvited, \nthe \nallegations\ncontained in the petition are deemed not to be admitted.\nUrgent certified website copy of this order, if applied\nfor, be furnished to the parties upon compliance of\nnecessary formalities.\n(Suvra Ghosh,J)\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "4th respondent",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "consider and dispose of the representation submitted by the petitioner on 17th April, 2023 within a period of three months from the date of communication of this order, after giving reasonable opportunity of hearing to all the interested persons including the petitioner and the private respondents, in accordance with law",
+      "deadline_phrase": "within a period of three months from the date of communication of this order",
+      "source_quote": "directing the 4th respondent to consider and dispose of the representation submitted by the petitioner on 17th April, 2023 within a period of three months from the date of communication of this order, after giving reasonable opportunity of hearing to all the interested  persons including the petitioner and the private respondents, in accordance with law."
+    }
+  ]
+}

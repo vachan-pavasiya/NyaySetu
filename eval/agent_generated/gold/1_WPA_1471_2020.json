@@ -1,0 +1,84 @@
+{
+  "judgment_id": 1,
+  "case_number": "WPA/1471/2020",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-10-16",
+  "petitioner": "AHMED ALI @ AHMED NADIM",
+  "respondent": "HOWRAH MUNICIPAL CORPORATION & ORS",
+  "operative_text_excerpt": "at this Court has not entered\ninto the merits of the claim made by the petitioner and\nall points are left open to be decided by the aforesaid\nrespondent at the time of consideration of the\nrepresentation of the petitioner.\n2\nThe petitioner is directed to forward a copy of the\nrepresentation dated 30th November, 2019 to the\naforesaid respondent at the time of communicating the\norder of the Court.\nThe writ petition stands disposed of.\nUrgent certified photocopy of this order, if applied\nfor, be supplied to the parties expeditiously on\ncompliance of usual legal formalities.\n( Amrita Sinha, J.)\n3\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Aforesaid respondent",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Conduct a spot inspection to ascertain the nature and extent of unauthorized construction",
+      "deadline_phrase": null,
+      "source_quote": "A spot inspection shall be conducted to ascertain\nthe nature and extent of unauthorized construction."
+    },
+    {
+      "direction_id": 2,
+      "responsible_party": "Aforesaid respondent",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Take necessary steps to deal with unauthorized construction in accordance with law if found in violation or devoid of sanction plan",
+      "deadline_phrase": null,
+      "source_quote": "In the event the aforesaid respondent is of the\nconsidered opinion that the construction has been\nmade either in violation of the plan sanctioned or\ndevoid the sanction plan, then necessary steps shall be\ntaken to deal with such unauthorized construction, in\naccordance with law."
+    },
+    {
+      "direction_id": 3,
+      "responsible_party": "Aforesaid respondent",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Restrict the consideration of the representation with regard to unauthorized construction only and not enter into or decide any private dispute",
+      "deadline_phrase": null,
+      "source_quote": "The aforesaid respondent shall restrict the\nconsideration of the representation with regard to\nunauthorized construction only and not enter into or\ndecide any private dispute of the parties regarding\nright, title and interest in respect of the aforesaid land."
+    },
+    {
+      "direction_id": 4,
+      "responsible_party": "Petitioner",
+      "party_type": "private",
+      "direction_type": "mandatory",
+      "action": "Forward a copy of the representation dated 30th November, 2019 to the aforesaid respondent at the time of communicating the order",
+      "deadline_phrase": null,
+      "source_quote": "The petitioner is directed to forward a copy of the\nrepresentation dated 30th November, 2019 to the\naforesaid respondent at the time of communicating the\norder of the Court."
+    },
+    {
+      "direction_id": 5,
+      "responsible_party": "Aforesaid respondent",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Conduct a spot inspection to ascertain the nature and extent of unauthorized construction",
+      "deadline_phrase": null,
+      "source_quote": "A spot inspection shall be conducted to ascertain the nature and extent of unauthorized construction."
+    },
+    {
+      "direction_id": 6,
+      "responsible_party": "Aforesaid respondent",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Take necessary steps to deal with unauthorized construction in accordance with law if found in violation or devoid of sanction plan",
+      "deadline_phrase": null,
+      "source_quote": "In the event the aforesaid respondent is of the considered opinion that the construction has been made either in violation of the plan sanctioned or devoid the sanction plan, then necessary steps shall be taken to deal with such unauthorized construction, in accordance with law."
+    },
+    {
+      "direction_id": 7,
+      "responsible_party": "Aforesaid respondent",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Restrict the consideration of the representation with regard to unauthorized construction only and not enter into or decide any private dispute",
+      "deadline_phrase": null,
+      "source_quote": "The aforesaid respondent shall restrict the consideration of the representation with regard to unauthorized construction only and not enter into or decide any private dispute of the parties regarding right, title and interest in respect of the aforesaid land."
+    },
+    {
+      "direction_id": 8,
+      "responsible_party": "Petitioner",
+      "party_type": "private",
+      "direction_type": "mandatory",
+      "action": "Forward a copy of the representation dated 30th November, 2019 to the aforesaid respondent at the time of communicating the order",
+      "deadline_phrase": null,
+      "source_quote": "The petitioner is directed to forward a copy of the representation dated 30th November, 2019 to the aforesaid respondent at the time of communicating the order of the Court."
+    }
+  ]
+}

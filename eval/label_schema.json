@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "JudgmentGoldAnnotation",
+  "type": "object",
+  "required": [
+    "judgment_id",
+    "case_number",
+    "court",
+    "judgment_date",
+    "directions"
+  ],
+  "properties": {
+    "judgment_id": {
+      "type": "integer",
+      "description": "Primary key ID of the judgment in the database"
+    },
+    "case_number": {
+      "type": "string",
+      "description": "Standardised case number (e.g. WPA/1471/2020)"
+    },
+    "court": {
+      "type": "string",
+      "description": "Court name or code"
+    },
+    "judgment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Pronouncement date in YYYY-MM-DD"
+    },
+    "petitioner": {
+      "type": ["string", "null"]
+    },
+    "respondent": {
+      "type": ["string", "null"]
+    },
+    "operative_text_excerpt": {
+      "type": "string",
+      "description": "Excerpt of operative paragraphs of the order"
+    },
+    "annotator_notes": {
+      "type": "string"
+    },
+    "directions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "responsible_party",
+          "action",
+          "source_quote"
+        ],
+        "properties": {
+          "direction_id": {
+            "type": ["integer", "null"]
+          },
+          "responsible_party": {
+            "type": "string",
+            "description": "Entity directed to act"
+          },
+          "party_type": {
+            "type": "string",
+            "enum": ["state", "individual", "corporate", "court", "other"]
+          },
+          "direction_type": {
+            "type": "string",
+            "enum": ["mandatory", "prohibitory", "declaratory", "conditional"]
+          },
+          "action": {
+            "type": "string",
+            "description": "What the party must do"
+          },
+          "deadline_phrase": {
+            "type": ["string", "null"],
+            "description": "Exact text describing the deadline or null"
+          },
+          "source_quote": {
+            "type": "string",
+            "description": "Exact verbatim quote from the judgment text"
+          }
+        }
+      }
+    }
+  }
+}
+

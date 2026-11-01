@@ -1,0 +1,21 @@
+{
+  "judgment_id": 14,
+  "case_number": "WPA/204/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-01-25",
+  "petitioner": "MERRY MONDAL",
+  "respondent": "STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": "  from the date of retirement\nof the petitioner till the date of such payment.\nThe payment as aforesaid shall be made\nwithin the period of eight weeks from the date of\ncommunication of this order, in default the said\narrear amount shall fetch an additional interest\nof 2% per annum.\nW.P.A. 204 of 2023 stands disposed of with\nthe above directions. There shall be no order as\nto costs.\n Urgent photostat certified copy of this\norder, if applied for, be supplied to the parties\nsubject \nto \ncompliance \nwith \nall \nrequisite\nformalities.\n                                             (Biswajit Basu, J.)\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Treasury Officer",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "Pay interest at 8% per annum on the gratuity and arrear pension from the date of retirement of the petitioner till the date of such payment within eight weeks from the date of communication of this order",
+      "deadline_phrase": "within the period of eight weeks from the date of\ncommunication of this order",
+      "source_quote": "The respondents, the concerned Treasury\nOfficer in particular are, therefore, directed to\npay interest @ 8% per annum on the gratuity\nand arrear pension  from the date of retirement\nof the petitioner till the date of such payment.\nThe payment as aforesaid shall be made\nwithin the period of eight weeks from the date of\ncommunication of this order, in default the said\narrear amount shall fetch an additional interest\nof 2% per annum."
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "timestamp": "2026-11-01T06:40:46.196906+00:00",
+  "summary": {
+    "gold_files_count": 0,
+    "overall_extraction_f1": 0.0,
+    "overall_extraction_precision": 0.0,
+    "overall_extraction_recall": 0.0,
+    "hallucination_rate_pct": 0.0,
+    "deadline_exact_accuracy_pct": 0.0,
+    "deadline_cases_tested": 0,
+    "linking_f1_pct": 100.0,
+    "linking_precision_pct": 100.0,
+    "linking_recall_pct": 100.0,
+    "temporal_sanity_violations": 0
+  },
+  "extraction": {
+    "eval_type": "extraction",
+    "status": "no human gold labels available",
+    "gold_files_count": 0,
+    "message": "no human gold labels available"
+  },
+  "deadline_resolution": {
+    "eval_type": "deadline_resolution",
+    "status": "no human gold labels available",
+    "total_test_cases": 0,
+    "message": "no human gold labels available"
+  },
+  "linking": {
+    "eval_type": "followup_linking",
+    "total_contempt_orders": 59,
+    "contempts_with_header_citations": 18,
+    "linkable_contempts_with_earlier_order_in_db": 12,
+    "correctly_linked_count": 12,
+    "linking_recall_pct": 100.0,
+    "linking_precision_pct": 100.0,
+    "linking_f1_pct": 100.0,
+    "temporal_sanity_violations": 0,
+    "total_system_links": 17,
+    "evaluated_pairs": [
+      {
+        "contempt_case": "WPCRC/18046/2005",
+        "contempt_id": 6,
+        "cited_writ": "WPA/13757/2004",
+        "writ_id": 161,
+        "linked": true,
+        "link_confidence": "LOW",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/1263/2022",
+        "contempt_id": 106,
+        "cited_writ": "WPA/5477/2022",
+        "writ_id": 162,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/1262/2022",
+        "contempt_id": 115,
+        "cited_writ": "WPA/2222/2022",
+        "writ_id": 157,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/454/2021",
+        "contempt_id": 116,
+        "cited_writ": "WPA/4835/2021",
+        "writ_id": 156,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/926/2022",
+        "contempt_id": 119,
+        "cited_writ": "WPA/7971/2021",
+        "writ_id": 158,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/1088/2023",
+        "contempt_id": 122,
+        "cited_writ": "WPA/11369/2023",
+        "writ_id": 151,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/810/2023",
+        "contempt_id": 123,
+        "cited_writ": "WPA/17378/2022",
+        "writ_id": 159,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/512/2023",
+        "contempt_id": 128,
+        "cited_writ": "WPA/4409/2022",
+        "writ_id": 163,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/886/2022",
+        "contempt_id": 136,
+        "cited_writ": "MAT/408/2022",
+        "writ_id": 165,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/446/2023",
+        "contempt_id": 142,
+        "cited_writ": "WPA/4466/2022",
+        "writ_id": 164,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/222/2023",
+        "contempt_id": 145,
+        "cited_writ": "WPA/18860/2021",
+        "writ_id": 160,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      },
+      {
+        "contempt_case": "CPAN/1261/2019",
+        "contempt_id": 147,
+        "cited_writ": "FMA/1879/2019",
+        "writ_id": 155,
+        "linked": true,
+        "link_confidence": "HIGH",
+        "temporal_sanity_pass": true
+      }
+    ]
+  }
+}

@@ -10,6 +10,8 @@ TIME BUDGET: the whole project must be finished in 20 hours. Prefer the simplest
 
 HACKATHON HARD RULES (violation = disqualification):
 
+EVAL INTEGRITY: Never create, fill or infer gold labels or expected values. Gold data comes only from the user.
+
 1\. NO dummy, mock, hardcoded or placeholder data in the app. Everything shown in the UI comes from the live open dataset (AWS Open Data bucket "indian-high-court-judgments", CC-BY-4.0, public, unsigned S3 access, no AWS account) or from records the pipeline derived from it. Never write seed JSON of fake cases or numbers.
 
 2\. Only static data files allowed: code, config, and a hand-labelled GOLD eval set from REAL judgments in /eval, used only to measure accuracy, never displayed as app data.

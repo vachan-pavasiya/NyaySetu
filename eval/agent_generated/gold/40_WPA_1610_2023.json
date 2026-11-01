@@ -1,0 +1,21 @@
+{
+  "judgment_id": 40,
+  "case_number": "WPA/1610/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-01-31",
+  "petitioner": "MRINMOY MONDAL",
+  "respondent": "THE DURGAPUR PROJECTS LIMITED AND ORS",
+  "operative_text_excerpt": "n case the petitioner has\noccupied the quarter granted by the employer after\nhis retirement the occupation charges for the said\nquarter will be deducted from the retiral benefits\nthat the petitioner is entitled to as per the extant\nrules and policies of the employer/DPL.\nAll parties shall act on the server copies of this\norder duly downloaded from the official website of\nthis Hon’ble Court.\nUrgent photostat certified copies of this order,\nif applied for, be supplied to the parties upon\ncompliance of all necessary formalities.\n                                             (Lapita Banerji, J.)\n3\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "respondent authority/DPL",
+      "party_type": "department",
+      "direction_type": "mandatory",
+      "action": "Pay the gratuity amount, interest, earned leave, and interest thereon within six months from date.",
+      "deadline_phrase": "within six months from date",
+      "source_quote": "The respondent authority/DPL is directed to pay the aforesaid payment within six months from date."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "judgment_id": 4,
+  "case_number": "WPA/2240/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-03-02",
+  "petitioner": "ADITYA BIRLA FINANCE LTD  AND ANR",
+  "respondent": "THE CHIEF JUDICIAL MAGISTRATE,BARASAT",
+  "operative_text_excerpt": "overruled the Division Bench Judgment of this Court in\nAndhra Bank & Ors. vs. Sri Dinesh Kumar Agarwal &\nOrs.; (2013)4 CHN 95 on that basis.\nWPA 2240 of 2023 is accordingly allowed and\ndisposed of with a direction on the learned Chief\nJudicial Magistrate, Barasat to decide and dispose of\nthe application within the time frame as provided under\nSection 14(1)(9) first and second proviso.  Since the\nperiod envisaged therein has already expired, the\napplication shall be disposed of within 30 days from the\ndate of communication of this order.\n                             (Moushumi Bhattacharya, J.)\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Chief Judicial Magistrate, Barasat",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "decide and dispose of the application within 30 days from the date of communication of this order",
+      "deadline_phrase": "within 30 days from the\ndate of communication of this order",
+      "source_quote": "WPA 2240 of 2023 is accordingly allowed and\ndisposed of with a direction on the learned Chief\nJudicial Magistrate, Barasat to decide and dispose of\nthe application within the time frame as provided under\nSection 14(1)(9) first and second proviso.  Since the\nperiod envisaged therein has already expired, the\napplication shall be disposed of within 30 days from the\ndate of communication of this order."
+    },
+    {
+      "direction_id": 2,
+      "responsible_party": "Chief Judicial Magistrate, Barasat",
+      "party_type": "officer",
+      "direction_type": "mandatory",
+      "action": "decide and dispose of the application within 30 days from the date of communication of this order",
+      "deadline_phrase": "within 30 days from the date of communication of this order",
+      "source_quote": "WPA 2240 of 2023 is accordingly allowed and disposed of with a direction on the learned Chief Judicial Magistrate, Barasat to decide and dispose of the application within the time frame as provided under Section 14(1)(9) first and second proviso.  Since the period envisaged therein has already expired, the application shall be disposed of within 30 days from the date of communication of this order."
+    }
+  ]
+}

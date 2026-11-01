@@ -1,0 +1,21 @@
+{
+  "judgment_id": 24,
+  "case_number": "WPA/3988/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-05-02",
+  "petitioner": "SRIKANTA KANDAR",
+  "respondent": "STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": " an additional interest of 2% per \nannum till the date the petitioner actually receives the \nsame. \n \n3 \nSince \naffidavits \nare \nnot \ncalled \nfor, \nthe \nallegations made in the writ petition are deemed not \nto have been admitted by the respondents.  \nOn the above terms, this writ petition being \nWPA 3988 of 2023 stands disposed of. \nThere shall, however, be no order as to costs.  \nUrgent certified photo copy of this order, if \napplied for, be supplied to the parties expeditiously on \ncompliance of usual legal formalities.    \n                                              \n(Aniruddha Roy, J.) \n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Director of Pension, Provident Fund and Group Insurance and the concerned Treasury Officer",
+      "party_type": "department",
+      "direction_type": "mandatory",
+      "action": "Pay interest on the revised gratuity and on arrear pension @ 8% per annum on and from February 14, 2020 till the date of actual payment being received by the petitioner",
+      "deadline_phrase": "within a period of eight weeks from \nthe date of communication of this order",
+      "source_quote": "the respondents and or \nthe Director of Pension, Provident Fund and Group \nInsurance and the concerned Treasury Officer are \ndirected to pay interest on the revised gratuity and on \narrear pension @ 8% per annum on and from \nFebruary 14, 2020 till the date of actual payment \nbeing received by the petitioner in terms of the revised \npension payment order. \nThe entire exercise as directed above, shall be \ncarried \nout \nand \ncompleted \npositively \nby \nthe \nrespondents and or the Director of Pension, Provident \nFund and Group Insurance and the concerned \nTreasury Officer within a period of eight weeks from \nthe date of communication of this order."
+    }
+  ]
+}

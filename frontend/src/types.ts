@@ -318,3 +318,25 @@ export interface CalendarResponse {
   directions: CalendarDirectionItem[];
 }
 
+export interface EvalSummary {
+  gold_files_count: number;
+  overall_extraction_f1: number;
+  overall_extraction_precision: number;
+  overall_extraction_recall: number;
+  hallucination_rate_pct: number;
+  deadline_exact_accuracy_pct: number;
+  deadline_cases_tested: number;
+  linking_f1_pct: number;
+  linking_precision_pct: number;
+  linking_recall_pct: number;
+  temporal_sanity_violations: number;
+}
+
+export interface EvalResultsResponse {
+  timestamp: string;
+  summary: EvalSummary;
+  extraction: Record<string, any>;
+  deadline_resolution: Record<string, any>;
+  linking: Record<string, any>;
+}
+

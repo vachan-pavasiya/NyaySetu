@@ -1,0 +1,21 @@
+{
+  "judgment_id": 54,
+  "case_number": "WPA/15756/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-07-04",
+  "petitioner": "RAMA LASKAR",
+  "respondent": "STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": "ct.\nA decision shall be taken in the matter at the\nearliest but positively within 24 hours from the date of\nreceipt of the copy of the order.\nLearned advocate for the petitioner is directed to\nforward a copy of the representation dated June 26,\n2023 to the aforesaid respondent at the time of\ncommunicating the order of the Court.\nThe writ petition stands disposed of.\nUrgent certified photocopy of this order, if applied\nfor, be supplied to the parties expeditiously on\ncompliance of usual legal formalities.\n \n  \nSh                                                                (Amrita Sinha, J.)\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Learned advocate for the petitioner",
+      "party_type": "other",
+      "direction_type": "mandatory",
+      "action": "Forward a copy of the representation dated June 26, 2023 to the aforesaid respondent at the time of communicating the order of the Court.",
+      "deadline_phrase": null,
+      "source_quote": "Learned advocate for the petitioner is directed to forward a copy of the representation dated June 26, 2023 to the aforesaid respondent at the time of communicating the order of the Court."
+    }
+  ]
+}

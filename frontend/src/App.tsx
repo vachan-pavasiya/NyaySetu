@@ -7,6 +7,7 @@ import {
   Clock,
   Calendar,
   DownloadCloud,
+  FileCheck,
   AlertCircle,
   HelpCircle,
 } from 'lucide-react';
@@ -16,8 +17,9 @@ import { JudgmentView } from './components/JudgmentView';
 import { TimelineView } from './components/TimelineView';
 import { CalendarView } from './components/CalendarView';
 import { IngestView } from './components/IngestView';
+import { EvalView } from './components/EvalView';
 
-type Tab = 'dashboard' | 'ledger' | 'judgments' | 'timeline' | 'calendar' | 'ingest';
+type Tab = 'dashboard' | 'ledger' | 'judgments' | 'timeline' | 'calendar' | 'ingest' | 'eval';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -147,6 +149,18 @@ export function App() {
                 <DownloadCloud className="w-3.5 h-3.5" />
                 <span>Live Pipeline</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab('eval')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                  activeTab === 'eval'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FileCheck className="w-3.5 h-3.5" />
+                <span>Eval Harness</span>
+              </button>
             </nav>
           </div>
         </div>
@@ -200,6 +214,8 @@ export function App() {
         )}
 
         {activeTab === 'ingest' && <IngestView />}
+
+        {activeTab === 'eval' && <EvalView />}
       </main>
 
       {/* Global "Why UNVERIFIED?" Modal */}

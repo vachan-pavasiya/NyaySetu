@@ -1,0 +1,21 @@
+{
+  "judgment_id": 17,
+  "case_number": "WPA/9716/2023",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-08-11",
+  "petitioner": "AMAL KRISHNA PATRA",
+  "respondent": "THE STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": "gratuity and arrear pension in terms of the said\nrevised Pension payment order.\nThe payment, as aforesaid, shall be made\nwithin a period of twelve weeks from the date of\ncommunication of this order, in default, the said\narrears amount shall fetch an additional interest of\n2% per annum.\nW.P.A. 9716 of 2023 stands disposed of with\nthe above directions. There shall be no order as to\ncosts.\n Urgent photostat certified copy of this order, if\napplied for, be supplied to the parties subject to\ncompliance with all requisite formalities.\n                                             (Biswajit Basu, J.)\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Director of Pension, Provident Fund and Group Insurance and the concerned Treasury Officer",
+      "party_type": "department",
+      "direction_type": "mandatory",
+      "action": "Pay interest on the revised gratuity and arrear pension @ 8% per annum from the date of notification of the aforesaid Government order i.e. February 14, 2020 till the date of payment of revised gratuity and arrear pension in terms of the said revised Pension payment order.",
+      "deadline_phrase": "within a period of twelve weeks from the date of\ncommunication of this order",
+      "source_quote": "The aforementioned respondents are, therefore\ndirected to pay interest on the revised gratuity and\narrear pension @ 8% per annum from the date of\nnotification of the aforesaid Government order i.e.\nFebruary 14, 2020 till the date of payment of revised\ngratuity and arrear pension in terms of the said\nrevised Pension payment order.\nThe payment, as aforesaid, shall be made\nwithin a period of twelve weeks from the date of\ncommunication of this order, in default, the said\narrears amount shall fetch an additional interest of\n2% per annum."
+    }
+  ]
+}

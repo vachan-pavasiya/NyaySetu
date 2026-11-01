@@ -1,0 +1,21 @@
+{
+  "judgment_id": 28,
+  "case_number": "WPA/24727/2022",
+  "court": "Calcutta High Court",
+  "judgment_date": "2023-05-15",
+  "petitioner": "SHRABANI GANGULY AND ORS",
+  "respondent": "THE STATE OF WEST BENGAL AND ORS.",
+  "operative_text_excerpt": "022 have been registered. \n4. It is ordered that the investigation into the\naforesaid FIRs be completed mandatorily and\npositively within a period of two months from date. \n5. The report of the Patuli Police Station dated 12th\nDecember, 2022 in the form of instructions addressed\nto the State Advocate be taken on record. \n6. With the aforesaid directions, the instant writ\npetition shall stand disposed of. \n7. There will be no order as to costs.   \n8. All parties are directed to act on a server copy of\nthis order duly downloaded from the official website of\nthis Court.\n(Rajasekhar Mantha, J.)\n2\n",
+  "annotator_notes": "Hand-verified gold standard from real Calcutta High Court order text",
+  "directions": [
+    {
+      "direction_id": 1,
+      "responsible_party": "Patuli Police Station",
+      "party_type": "department",
+      "direction_type": "mandatory",
+      "action": "Complete the investigation into the aforesaid FIRs mandatorily and positively within a period of two months from date.",
+      "deadline_phrase": "within a period of two months from date",
+      "source_quote": "It is ordered that the investigation into the\naforesaid FIRs be completed mandatorily and\npositively within a period of two months from date."
+    }
+  ]
+}
