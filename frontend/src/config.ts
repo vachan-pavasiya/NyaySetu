@@ -1,15 +1,19 @@
 /**
  * Application Configuration & API URL Helper
  * Reads VITE_API_URL from environment variables for production deployments.
- * Configures dynamic API URL resolution without hardcoded domains.
+ * Defaults to the live Render deployment if not explicitly configured in production.
  */
 
 const rawApiUrl = import.meta.env.VITE_API_URL;
-export const API_BASE_URL: string = rawApiUrl ? rawApiUrl.replace(/\/+$/, '') : '';
+
+// If VITE_API_URL is provided, use it. In production, default to live Render backend.
+export const API_BASE_URL: string = rawApiUrl
+  ? rawApiUrl.replace(/\/+$/, '')
+  : (import.meta.env.PROD ? 'https://nyaysetu-backend-dfr6.onrender.com' : '');
 
 /**
- * Build absolute API URL if VITE_API_URL is configured,
- * otherwise return relative /api path for same-domain or reverse proxy.
+ * Build absolute API URL if API_BASE_URL is configured,
+ * otherwise return relative /api path for same-domain or Vite reverse proxy.
  */
 export function getApiUrl(endpoint: string): string {
   const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -18,4 +22,3 @@ export function getApiUrl(endpoint: string): string {
   }
   return clean.startsWith('/api') ? clean : `/api${clean}`;
 }
-

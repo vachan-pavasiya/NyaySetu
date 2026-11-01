@@ -19,19 +19,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingSeconds, setLoadingSeconds] = useState<number>(0);
   const [showUnverifiedNote, setShowUnverifiedNote] = useState<boolean>(false);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (retryCount = 0) => {
     setLoading(true);
     try {
       const res = await fetch(getApiUrl('/dashboard'));
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        setLoading(false);
+        return;
       }
+      throw new Error(`Server returned status ${res.status}`);
     } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
-    } finally {
+      console.warn('Dashboard fetch attempt failed:', err);
+      if (retryCount < 2) {
+        setTimeout(() => fetchDashboard(retryCount + 1), 3500);
+        return;
+      }
       setLoading(false);
     }
   };
@@ -40,18 +47,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     fetchDashboard();
   }, []);
 
+  useEffect(() => {
+    if (!loading) {
+      setLoadingSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setLoadingSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [loading]);
+
   if (loading) {
     return (
-      <div className="py-20 border border-[var(--border-rule)] bg-[var(--bg-surface)] text-center font-sans text-xs text-[var(--ink-secondary)] italic">
-        Loading compliance register telemetry from database...
+      <div className="py-20 border border-[var(--border-rule)] bg-[var(--bg-surface)] text-center font-sans text-xs text-[var(--ink-secondary)] space-y-3">
+        <div className="flex items-center justify-center gap-2">
+          <IconRefresh size={14} className="animate-spin text-[var(--accent-oxblood)]" />
+          <span className="italic font-medium">
+            Loading compliance register telemetry from database...
+          </span>
+        </div>
+        {loadingSeconds >= 3 && (
+          <p className="text-[11px] text-[var(--ink-muted)] max-w-md mx-auto">
+            Connecting to cloud backend... (Render free-tier instances may take ~15-20s to spin up on cold start).
+          </p>
+        )}
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="p-6 border border-[var(--status-overdue)] bg-[var(--status-overdue-bg)] text-center font-sans text-xs text-[var(--status-overdue)]">
-        Unable to retrieve register data. Please verify the backend server is reachable.
+      <div className="p-8 border border-[var(--status-overdue)] bg-[var(--status-overdue-bg)] text-center font-sans text-xs text-[var(--status-overdue)] space-y-3">
+        <div className="font-semibold">
+          Unable to retrieve register data. Please verify the backend server is reachable.
+        </div>
+        <p className="text-[11px] opacity-80">
+          Target URL: <code className="font-mono">{getApiUrl('/dashboard')}</code>
+        </p>
+        <button
+          onClick={() => fetchDashboard(0)}
+          className="font-mono text-xs uppercase tracking-wider font-semibold px-4 py-1.5 border border-[var(--status-overdue)] bg-white text-[var(--status-overdue)] hover:bg-[var(--status-overdue-bg)] rounded-[2px]"
+        >
+          Retry Connection
+        </button>
       </div>
     );
   }
@@ -81,7 +120,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Why UNVERIFIED?
             </button>
             <button
-              onClick={fetchDashboard}
+              onClick={() => fetchDashboard(0)}
               className="font-mono text-xs uppercase tracking-wider font-semibold px-3 py-1.5 border border-[var(--border-rule-strong)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-muted)] text-[var(--ink-primary)] rounded-[2px] inline-flex items-center gap-1.5"
             >
               <IconRefresh size={12} className={loading ? 'animate-spin' : ''} />
